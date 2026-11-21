@@ -1,0 +1,49 @@
+main {
+  max-width: 1040px;
+  margin: 0 auto;
+  padding: 64px 24px;
+}
+header {
+  max-width: 680px;
+  margin-bottom: 40px;
+}
+h1 {
+  font-size: clamp(2.5rem, 7vw, 4rem);
+  line-height: 1.1;
+  margin: 12px 0 24px;
+  letter-spacing: -0.04em;
+}
+p {
+  line-height: 1.65;
+}
+.eyebrow {
+  color: #315b72;
+  font-weight: 600;
+}
+section {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+}
+mat-card {
+  padding: 12px;
+  background: #fff;
+}
+mat-card-content {
+  padding-top: 12px;
+}
+.status {
+  font-size: 1.5rem;
+  font-weight: 600;
+}
+.available {
+  color: #216345;
+}
+@media (max-width: 640px) {
+  main {
+    padding: 32px 16px;
+  }
+  section {
+    grid-template-columns: 1fr;
+  }
+}

@@ -1,0 +1,42 @@
+<main>
+  <header>
+    <p class="eyebrow">Fundação da plataforma</p>
+    <h1>AI Dev Office</h1>
+    <p>Uma base para construir software com colaboração entre pessoas e agentes.</p>
+  </header>
+  <section aria-label="Estado da plataforma">
+    <mat-card appearance="outlined">
+      <mat-card-header><mat-card-title>Conexão com o backend</mat-card-title></mat-card-header>
+      <mat-card-content aria-live="polite" aria-atomic="true">
+        @switch (status()) {
+          @case ('loading') {
+            <p class="status">Verificando…</p>
+          }
+          @case ('up') {
+            <p class="status available">Disponível</p>
+            <p>O backend respondeu que está pronto para receber requisições.</p>
+          }
+          @case ('down') {
+            <p class="status">Indisponível</p>
+            <p>Confira se o backend e o PostgreSQL estão em execução e tente novamente.</p>
+          }
+        }
+      </mat-card-content>
+      <mat-card-actions>
+        <button mat-stroked-button (click)="checkHealth()" [disabled]="status() === 'loading'">
+          Verificar novamente
+        </button>
+      </mat-card-actions>
+    </mat-card>
+    <mat-card appearance="outlined">
+      <mat-card-header><mat-card-title>Fundação da plataforma</mat-card-title></mat-card-header>
+      <mat-card-content>
+        <p>Esta entrega prepara a aplicação, o banco de dados e os testes.</p>
+        <p>
+          Gestão de projetos, agentes de IA e escritório virtual serão desenvolvidos nas próximas
+          fases.
+        </p>
+      </mat-card-content>
+    </mat-card>
+  </section>
+</main>

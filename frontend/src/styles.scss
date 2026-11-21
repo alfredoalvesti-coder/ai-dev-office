@@ -1,0 +1,22 @@
+@use '@angular/material' as mat;
+html {
+  @include mat.theme(
+    (
+      color: (
+        primary: mat.$azure-palette,
+        tertiary: mat.$cyan-palette,
+      ),
+      typography: 'Segoe UI',
+      density: 0,
+    )
+  );
+}
+body {
+  margin: 0;
+  background: #f2f5f7;
+  color: #162c3a;
+  font-family: 'Segoe UI', sans-serif;
+}
+* {
+  box-sizing: border-box;
+}
