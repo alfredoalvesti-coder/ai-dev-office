@@ -63,3 +63,21 @@ node ../../.tools/package/bin/npm-cli.js audit --omit=dev --json
 - Definir licença antes da publicação pública.
 
 Não há evidência local de execução PostgreSQL, de aprovação do workflow remoto ou de revisão visual da página. Os testes H2 e os builds não substituem essas verificações.
+
+## Investigação posterior da instalação no CI
+
+Após publicar `f5ba1f4`, o workflow Fundação concluiu backend e Compose com sucesso. O job frontend falhou em `npm ci`, com código EUSAGE e ausência de `@emnapi/core@1.11.3` e `@emnapi/runtime@1.11.3` no lockfile. Testes, build e auditoria do frontend remoto foram ignorados após essa falha.
+
+O lockfile registra `@napi-rs/wasm-runtime@1.2.7`, dependência do binding WASM do Rolldown, com os dois pacotes em `peerDependencies`. As entradas desses peers estavam ausentes. O CI usou npm 11.19.1 no Linux, enquanto a validação original usou npm 11.6.2 no Windows. A reprodução isolada com npm 11.19.1 e resolução Linux x64 glibc apresentou as mesmas duas ausências.
+
+A correção local declara os dois peers explicitamente em `devDependencies`, fixados em 1.11.3, e atualiza o lockfile. A resolução Linux em modo dry-run passou após essa mudança. Os comandos de reprodução são os seguintes, usando uma cópia temporária dos manifests e a instalação local da versão do npm do CI.
+
+```powershell
+node ../npm-ci-version/package/bin/npm-cli.js ci --dry-run --ignore-scripts --os=linux --cpu=x64 --libc=glibc --no-audit --no-fund
+```
+
+O dry-run verifica resolução e consistência do lockfile. A execução real dos scripts no Linux exige uma nova execução do CI. O notebook não possui Docker ou WSL configurados para essa validação.
+
+A instalação real no Windows com npm 11.19.1 passou após a correção. Os cinco testes Angular e o build de produção também passaram. A resolução Linux em dry-run foi aprovada tanto com npm 11.19.1 quanto com npm 11.6.2. A comparação do lockfile confirmou duas entradas novas e nenhuma alteração de versão nos pacotes existentes. A revisão independente não identificou achados no ajuste. A correção foi preparada na branch `fix/frontend-ci-peer-dependencies`. A validação remota depende da publicação e de uma nova execução do CI.
+
+[Workflow original](https://github.com/alfredoalvesti-coder/ai-dev-office/actions/runs/44931987909) · [Relato e solução indicada pelo mantenedor](https://github.com/napi-rs/napi-rs/issues/3174) · [Contrato do npm ci](https://docs.npmjs.com/cli/v11/commands/npm-ci/)
