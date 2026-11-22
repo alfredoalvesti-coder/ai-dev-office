@@ -1,49 +1,117 @@
-import { AfterViewInit, Component, ElementRef, Input, OnChanges, OnDestroy, ViewChild, ChangeDetectionStrategy } from '@angular/core';
-import { TeamRunStep } from './team.service';
+import {
+  AfterViewInit, ChangeDetectionStrategy, Component, ElementRef, OnDestroy, computed, effect, input,
+  signal, viewChild,
+} from '@angular/core';
+import type { OfficeRenderer } from './office-renderer';
+import { OFFICE_CREW, OFFICE_STATUS, officeStatuses } from './office-state';
+import type { TeamRun } from './team.service';
 
 @Component({
   selector: 'app-office-scene',
-  standalone: true,
-  template: '<canvas #scene aria-hidden="true"></canvas>',
-  changeDetection: ChangeDetectionStrategy.Eager,
-  styles: [':host{display:block;width:100%;height:300px;background:#eaf3f4;border-radius:14px;overflow:hidden}canvas{display:block;width:100%;height:100%}'],
+  templateUrl: './office-scene.component.html',
+  styleUrl: './office-scene.component.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class OfficeSceneComponent implements AfterViewInit,OnChanges,OnDestroy {
-  @Input() steps: TeamRunStep[]=[];
-  @ViewChild('scene',{static:true}) private canvasRef!: ElementRef<HTMLCanvasElement>;
-  private observer?:ResizeObserver;
-  private frame=0;
-  ngAfterViewInit():void {
-    this.observer=new ResizeObserver(()=>this.draw()); this.observer.observe(this.canvasRef.nativeElement);
-    this.draw();
-  }
-  ngOnChanges():void { this.draw(); }
-  ngOnDestroy():void { this.observer?.disconnect(); cancelAnimationFrame(this.frame); }
-  private draw():void {
-    if(!this.canvasRef) return;
-    cancelAnimationFrame(this.frame);
-    this.frame=requestAnimationFrame(()=>{
-      const canvas=this.canvasRef.nativeElement, bounds=canvas.getBoundingClientRect(), ratio=window.devicePixelRatio||1;
-      if(!bounds.width||!bounds.height) return;
-      canvas.width=bounds.width*ratio;canvas.height=bounds.height*ratio;
-      const ctx=canvas.getContext('2d');if(!ctx)return;ctx.scale(ratio,ratio);
-      const width=bounds.width,height=bounds.height;
-      ctx.fillStyle='#eaf3f4';ctx.fillRect(0,0,width,height);
-      ctx.fillStyle='#d7e8e6';ctx.fillRect(0,height*.65,width,height*.35);
-      const labels=['PM','Analista','Arquiteto','Dev','QA','Revisor'];
-      const roles=['PROJECT_MANAGER','BUSINESS_ANALYST','ARCHITECT','DEVELOPER','QA','REVIEWER'];
-      const last=new Map<string,TeamRunStep>();for(const step of this.steps)last.set(step.role,step);
-      const gap=width/7, radius=Math.min(24,width/34);
-      roles.forEach((role,index)=>{
-        const x=gap*(index+1),y=height*.37,step=last.get(role);
-        ctx.fillStyle='#c8d7d9';ctx.fillRect(x-36,y+radius+16,72,54);ctx.fillStyle='#91a6a7';ctx.fillRect(x-42,y+radius+12,84,9);
-        ctx.fillStyle=step?.status==='RUNNING'?'#e5a233':step?.status==='FAILED'?'#c95353':step?.status==='SUCCEEDED'?'#37866b':step?.status==='SKIPPED'||step?.status==='CANCELLED'?'#788990':'#8b9da3';
-        ctx.beginPath();ctx.arc(x,y,radius,0,Math.PI*2);ctx.fill();
-        ctx.fillStyle='#fff';ctx.font=`bold ${Math.max(11,radius*.65)}px system-ui`;ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(String(index+1),x,y);
-        ctx.fillStyle='#163442';ctx.font='600 12px system-ui';ctx.fillText(labels[index],x,y+radius+82);
-        ctx.fillStyle='#50666d';ctx.font='11px system-ui';ctx.fillText(step?.status??'IDLE',x,y+radius+99);
-      });
-      ctx.fillStyle='#335c60';ctx.font='600 13px system-ui';ctx.textAlign='left';ctx.fillText('EQUIPE EM ATIVIDADE',18,24);
+export class OfficeSceneComponent implements AfterViewInit, OnDestroy {
+  readonly run = input<TeamRun | null>(null);
+  readonly crew = OFFICE_CREW;
+  readonly statuses = computed(() => officeStatuses(this.run()));
+  readonly activeCrew = computed(() => this.crew.filter(({ role }) => this.statuses()[role] === 'RUNNING'));
+  readonly state = signal<'loading' | 'ready' | 'unavailable'>('loading');
+  readonly paused = signal(false);
+  readonly reducedMotion = signal(false);
+  readonly motionPaused = computed(() => this.paused() || this.reducedMotion());
+  private readonly runKey = computed(() => {
+    const run = this.run();
+    return run ? run.id + '/' + run.attempt_count : '';
+  });
+  private readonly surface = viewChild.required<ElementRef<HTMLElement>>('surface');
+  private readonly canvas = viewChild.required<ElementRef<HTMLCanvasElement>>('canvas');
+  private viewport?: IntersectionObserver;
+  private resizeObserver?: ResizeObserver;
+  private motionPreference?: MediaQueryList;
+  private renderer?: OfficeRenderer;
+  private initialized = false;
+  private destroyed = false;
+  private visible = true;
+
+  constructor() {
+    effect(() => {
+      const statuses = this.statuses();
+      const key = this.runKey();
+      this.renderer?.setStatuses(statuses, key);
+    });
+    effect(() => {
+      const paused = this.motionPaused();
+      this.renderer?.setMotion(this.visible, paused);
     });
   }
+
+  ngAfterViewInit(): void {
+    this.motionPreference = window.matchMedia?.('(prefers-reduced-motion: reduce)');
+    this.syncMotionPreference();
+    this.motionPreference?.addEventListener('change', this.syncMotionPreference);
+    this.canvas().nativeElement.addEventListener('webglcontextlost', this.onContextLost);
+    const surface = this.surface().nativeElement;
+    if (typeof IntersectionObserver === 'undefined') {
+      void this.initialize();
+      return;
+    }
+    this.viewport = new IntersectionObserver(([entry]) => {
+      this.visible = entry.isIntersecting;
+      this.renderer?.setMotion(this.visible, this.motionPaused());
+      if (this.visible) void this.initialize();
+    });
+    this.viewport.observe(surface);
+  }
+
+  ngOnDestroy(): void {
+    this.destroyed = true;
+    this.viewport?.disconnect();
+    this.resizeObserver?.disconnect();
+    this.motionPreference?.removeEventListener('change', this.syncMotionPreference);
+    this.canvas().nativeElement.removeEventListener('webglcontextlost', this.onContextLost);
+    this.renderer?.dispose();
+  }
+
+  statusFor(role: (typeof OFFICE_CREW)[number]['role']) {
+    return OFFICE_STATUS[this.statuses()[role]];
+  }
+
+  private async initialize(): Promise<void> {
+    if (this.initialized || this.destroyed) return;
+    this.initialized = true;
+    try {
+      const { OfficeRenderer } = await import('./office-renderer');
+      if (this.destroyed) return;
+      this.renderer = new OfficeRenderer(this.canvas().nativeElement);
+      const surface = this.surface().nativeElement;
+      this.renderer.resize(surface.clientWidth, surface.clientHeight);
+      this.renderer.setStatuses(this.statuses(), this.runKey());
+      this.renderer.setMotion(this.visible, this.motionPaused());
+      if (typeof ResizeObserver !== 'undefined') {
+        this.resizeObserver = new ResizeObserver(([entry]) =>
+          this.renderer?.resize(entry.contentRect.width, entry.contentRect.height));
+        this.resizeObserver.observe(surface);
+      }
+      this.state.set('ready');
+    } catch {
+      this.renderer?.dispose();
+      this.renderer = undefined;
+      this.state.set('unavailable');
+    }
+  }
+
+  private readonly syncMotionPreference = (): void => {
+    this.reducedMotion.set(this.motionPreference?.matches ?? false);
+  };
+
+  private readonly onContextLost = (event: Event): void => {
+    event.preventDefault();
+    const renderer = this.renderer;
+    this.renderer = undefined;
+    this.resizeObserver?.disconnect();
+    renderer?.dispose(false);
+    this.state.set('unavailable');
+  };
 }

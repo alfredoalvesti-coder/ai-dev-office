@@ -1,6 +1,6 @@
 # Roadmap e backlog de Issues
 
-As fases 1 a 5 cobrem gestão, agentes e escritório 2D. A Fase 6 acrescenta execução isolada, observabilidade e procedimentos de entrega no escopo de uma demonstração privada. Os itens abaixo registram os critérios de cada fase.
+As fases 1 a 5 cobrem gestão, agentes e escritório virtual. A Fase 6 acrescenta execução isolada, observabilidade e procedimentos de entrega no escopo de uma demonstração privada. Os itens abaixo registram os critérios de cada fase.
 
 ## Fase 1 — Fundação
 
@@ -118,7 +118,7 @@ Testes sugeridos — QA falhando, revisão reprovada, correção insuficiente, l
 
 ## Fase 5 — Escritório virtual
 
-Status — Implementados eventos persistidos com cursor, recuperação REST, entrega WebSocket autenticada por ticket de uso único e sala 2D Canvas com timeline acessível, usando estados reais. Veja [ADR 0007](adr/0007-office-events-and-canvas.md).
+Status — Implementados eventos persistidos com cursor, recuperação REST, entrega WebSocket autenticada por ticket de uso único e timeline acessível. A V1 do escritório 3D pixelado usa esses estados para animar os seis personagens. [ADR 0007](adr/0007-office-events-and-canvas.md) · [ADR 0009](adr/0009-pixel-office-v1.md)
 
 ### F5-01 — Eventos em tempo real
 

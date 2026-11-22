@@ -1,0 +1,39 @@
+<section class="office" aria-labelledby="office-heading">
+  <header class="office-bar">
+    <div>
+      <h3 id="office-heading">Escritório da equipe</h3>
+      <p aria-live="polite">
+        @if (activeCrew().length) {
+          {{ activeCrew()[0].name }} em atividade
+        } @else {
+          Nenhuma etapa em atividade
+        }
+      </p>
+    </div>
+    @if (state() === 'ready') {
+      <button type="button" class="motion" (click)="paused.set(!paused())" [disabled]="reducedMotion()">
+        @if (reducedMotion()) { Movimento reduzido }
+        @else { {{ paused() ? 'Retomar animação' : 'Pausar animação' }} }
+      </button>
+    }
+  </header>
+  <div class="surface" #surface>
+    <canvas #canvas aria-hidden="true" [class.ready]="state() === 'ready'"></canvas>
+    @if (state() === 'loading') {
+      <p class="notice" role="status">Carregando escritório 3D…</p>
+    } @else if (state() === 'unavailable') {
+      <p class="notice" role="status">Visualização 3D indisponível. Acompanhe a equipe pelos estados e pela atividade recente.</p>
+    }
+  </div>
+  <ul class="roster" aria-label="Integrantes da equipe">
+    @for (member of crew; track member.role) {
+      <li [class.active]="statuses()[member.role] === 'RUNNING'">
+        <span class="member-color" [style.background]="member.color" aria-hidden="true"></span>
+        <div>
+          <strong>{{ member.name }}</strong>
+          <span [style.color]="statusFor(member.role).color">{{ statusFor(member.role).label }}</span>
+        </div>
+      </li>
+    }
+  </ul>
+</section>

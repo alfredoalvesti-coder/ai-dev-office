@@ -187,16 +187,12 @@
               <label>Demanda para a equipe<textarea name="teamDemand" [(ngModel)]="teamDemand" maxlength="5000" rows="3" required placeholder="PM, analista, arquiteto, desenvolvedor, QA e revisor em sequência"></textarea></label>
               <button mat-flat-button type="submit" [disabled]="teamBusy()">{{ teamBusy() ? 'Enviando…' : 'Iniciar equipe' }}</button>
             </form>
+            @for (project of [selectedProjectId()]; track project) {
+              <app-office-scene [run]="selectedTeamRun()" />
+            }
             <div class="office-layout">
               <div>
-                <h3>Escritório 2D</h3>
-                @if (teamRuns().length) {
-                  @for (run of teamRuns(); track run.id) {
-                    @if (selectedTeamRunId() === run.id) { <app-office-scene [steps]="visibleTeamSteps(run)" /> }
-                  }
-                } @else { <app-office-scene [steps]="[]" /> }
-                <p class="muted">A cena espelha os estados recebidos do backend; o histórico abaixo continua disponível sem canvas.</p>
-                <h4>Atividade recente</h4>
+                <h3>Atividade recente</h3>
                 <ol class="event-timeline" aria-live="polite">
                   @for (event of teamEvents().slice(-12).reverse(); track event.eventId) {
                     <li><strong>{{ teamEventLabel(event) }}</strong><span>{{ event.occurredAt }} · cursor {{ event.cursor }}</span></li>
@@ -211,9 +207,10 @@
                       <button mat-button (click)="selectedTeamRunId.set(run.id)"><strong>{{ run.status }}</strong> · {{ run.demand }}</button>
                       @if (selectedTeamRunId() === run.id) {
                         <p class="muted">Execução {{ run.attempt_count }} · {{ run.model || 'Ollama local' }} · contexto {{ run.context_version }}</p>
+                        @let statuses = officeStatuses(run);
                         <ol class="role-list">
-                          @for (role of ['PROJECT_MANAGER','BUSINESS_ANALYST','ARCHITECT','DEVELOPER','QA','REVIEWER']; track role) {
-                            <li><strong>{{ role }}</strong><span class="status-pill">{{ teamStepStatus(run, role) }}</span></li>
+                          @for (member of officeCrew; track member.role) {
+                            <li><strong>{{ member.name }}</strong><span class="status-pill">{{ officeStatusLabels[statuses[member.role]].label }}</span></li>
                           }
                         </ol>
                         @if (run.error_code) { <p class="error">Falha: {{ run.error_code }}</p> }

@@ -62,6 +62,6 @@ Logs usam JSON ECS. Não registrar prompts completos, credenciais nem conteúdo 
 
 Uma demanda gera uma execução persistida e passa pelos seis papéis locais. O contexto é acumulado entre passos e os artefatos, tentativas e falhas ficam registrados. Saídas inválidas recebem uma repetição limitada. Após o revisor, o plano aguarda aprovação humana vinculada ao hash; aprovar cria tarefas em `TODO`.
 
-O backend é a fonte de verdade. Eventos persistidos são entregues por REST e WebSocket autenticado por ticket temporário de uso único. O canvas e a timeline representam os mesmos estados do backend; a recuperação usa cursor e histórico.
+O backend é a fonte de verdade. Eventos persistidos são entregues por REST e WebSocket autenticado por ticket temporário de uso único. O escritório 3D pixelado e a timeline representam os estados do backend. A recuperação usa cursor e histórico. [ADR 0009](adr/0009-pixel-office-v1.md)
 
 O painel de ferramentas usa uma aprovação independente vinculada ao código, à ferramenta e à imagem. O worker passa código por stdin a um contêiner sem montagens do host e registra o resultado por projeto. O Compose fornece PostgreSQL. O daemon dedicado do executor tem configuração própria. [ADR 0008](adr/0008-isolated-tool-execution.md).
