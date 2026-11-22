@@ -1,4 +1,4 @@
-import { Component, DestroyRef, computed, inject, signal } from '@angular/core';
+import { Component, DestroyRef, computed, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { interval, Subscription, timeout } from 'rxjs';
@@ -11,11 +11,13 @@ import { Task, TaskHistory, TaskStatus, TasksService } from './tasks.service';
 import { AgentsService, AnalysisDraft, AnalysisRun } from './agents.service';
 import { ProjectEvent, TeamFinalArtifact, TeamRun, TeamService } from './team.service';
 import { OfficeSceneComponent } from './office-scene.component';
+import { ToolRunsComponent } from './tool-runs.component';
 
 @Component({
   selector: 'app-root',
-  imports: [FormsModule, MatCardModule, MatButtonModule, OfficeSceneComponent],
+  imports: [FormsModule, MatCardModule, MatButtonModule, OfficeSceneComponent, ToolRunsComponent],
   templateUrl: './app.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './app.scss',
 })
 export class App {

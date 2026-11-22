@@ -8,16 +8,16 @@ O projeto é um ambiente de aprendizado profissional e portfólio para Full Stac
 
 Fases 1 a 5 implementadas no escopo descrito no roadmap: gestão, analista local, equipe multiagente, aprovação humana e escritório 2D com eventos reais. A equipe analisa demandas e cria tarefas após aprovação; ainda não escreve nem executa código. APIs exigem credenciais locais. Consulte [validação das Fases 4 e 5](docs/validation-phases-four-five.md) e a [validação local](docs/validation.md).
 
-Execução de código isolada, política de ferramentas e observabilidade de produção permanecem planejadas para a Fase 6. O escritório 2D exibe eventos reais persistidos pelo backend.
+A Fase 6 acrescenta ferramentas de JavaScript em contêiner efêmero, aprovação vinculada ao código e à imagem, histórico de resultados, métricas, alertas e procedimentos de entrega e recuperação. O executor inicia desativado e pode ser habilitado para uma demonstração em ambiente privado. [Guia da Fase 6](docs/learning/phase-six.md).
 
 Licença pendente por decisão do titular. A inclusão da MIT será avaliada posteriormente. A publicação pública ainda depende dessa definição e de autorização.
 
 ## Tecnologias
 
-- Java 21 LTS, Spring Boot 3.5.16 e Maven Wrapper 3.9.11.
+- Java 21 LTS, Spring Boot 4.2.0, Spring AI 2.1.0 e Maven Wrapper 3.9.11.
 - Spring Web, Data JPA, Security, Validation, Actuator e Springdoc OpenAPI.
 - PostgreSQL 17.12 e Flyway.
-- Angular 21 LTS, TypeScript 5.9, standalone components, Signals, RxJS e Angular Material.
+- Angular 22.3, TypeScript 6.0, standalone components, Signals, RxJS e Angular Material.
 - JUnit 5, Mockito disponível no starter de testes, MockMvc, H2, Testcontainers e Vitest.
 - Docker Compose e GitHub Actions configurados.
 
@@ -25,7 +25,7 @@ As versões foram verificadas em fontes oficiais e fixadas no POM e lockfile. Ve
 
 ## Arquitetura
 
-Monólito modular com frontend separado no mesmo repositório. Os módulos implementados cobrem plataforma, projetos, tarefas, análise local, orquestração sequencial da equipe e eventos do escritório. Execução isolada de ferramentas permanece planejada.
+Monólito modular com frontend separado no mesmo repositório. Os módulos cobrem plataforma, projetos, tarefas, análise local, orquestração sequencial, eventos do escritório e execução isolada sob aprovação.
 
 ```mermaid
 flowchart LR
@@ -62,7 +62,7 @@ ai-dev-office/
 
 ## Como executar localmente
 
-Requisitos — JDK 21, Node 24 com npm, Docker Engine ou Docker Desktop com Compose v2 e Git. Maven e Angular CLI globais são dispensáveis. No notebook usado nesta entrega, Docker e npm global não estão disponíveis. Foram usadas cópias oficiais locais de npm e Maven no workspace pai para os builds. Veja [os detalhes](docs/validation.md).
+Requisitos — JDK 21, Node 24 a partir de 24.15 com npm, Docker Engine ou Docker Desktop com Compose v2 e Git. Maven e Angular CLI globais são dispensáveis. No notebook usado nesta entrega, Docker e npm global não estão disponíveis. Foram usadas cópias oficiais locais de npm e Maven no workspace pai para os builds. Veja [os detalhes](docs/validation.md).
 
 ### 1. Configuração e PostgreSQL
 
@@ -117,7 +117,11 @@ Instale o Ollama separadamente e baixe o modelo uma vez com `ollama pull qwen2.5
 
 ### Equipe e escritório 2D (Fases 4 e 5)
 
-No painel “Equipe multiagente e escritório”, envie uma demanda para seis papéis Ollama sequenciais. Os passos aparecem na timeline e na sala 2D; ao final, revise o plano agregado e aprove pelo hash para criar tarefas. WebSocket transmite eventos reais e o histórico REST recupera a conexão. Não há execução de código ou ferramentas. Detalhes: [guia Fases 4/5](docs/learning/phases-four-five.md), [ADR 0006](docs/adr/0006-sequential-agent-team.md), [ADR 0007](docs/adr/0007-office-events-and-canvas.md).
+No painel “Equipe multiagente e escritório”, envie uma demanda para seis papéis Ollama sequenciais. Os passos aparecem na timeline e na sala 2D. Revise o plano agregado e aprove pelo hash para criar tarefas. WebSocket transmite eventos reais e o histórico REST recupera a conexão. [Guia Fases 4/5](docs/learning/phases-four-five.md) · [ADR 0006](docs/adr/0006-sequential-agent-team.md) · [ADR 0007](docs/adr/0007-office-events-and-canvas.md).
+
+### Ferramentas isoladas (Fase 6)
+
+Selecione um projeto, crie uma proposta JavaScript, revise o código e aprove a execução separadamente da aprovação do plano. O painel mostra estado, saída e cancelamento conforme o backend. Configure Docker e a imagem por SHA-256 usando o [guia da Fase 6](docs/learning/phase-six.md).
 
 Rotas de gestão e OpenAPI exigem HTTP Basic. Configure `APP_USERNAME` e `APP_PASSWORD` no ambiente do terminal que inicia o backend; o exemplo usa `office` como usuário. A tela Angular solicita essas credenciais e as mantém apenas em memória. Health continua público. O backend escuta em loopback por padrão; uma exposição de rede exige HTTPS e revisão da política de usuários. Os logs de produção usam JSON ECS.
 
@@ -157,7 +161,7 @@ Para encerrar somente o PostgreSQL de desenvolvimento, use `docker compose --env
 5. Escritório Phaser e eventos WebSocket reais.
 6. Execução isolada, observabilidade, segurança, CI/CD e demonstração.
 
-Execução de código gerado exige antecipar a entrega de isolamento da Fase 6. A configuração Compose atual fornece apenas o banco local. [Backlog completo com critérios, dependências e testes](docs/roadmap.md).
+A configuração Compose fornece o banco local. O executor usa um daemon Docker configurado separadamente. [Backlog completo com critérios, dependências e testes](docs/roadmap.md).
 
 ## Objetivos de aprendizado
 

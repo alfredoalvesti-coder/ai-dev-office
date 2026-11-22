@@ -9,6 +9,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -16,12 +18,31 @@ jobs:
           cache: maven
           cache-dependency-path: backend/pom.xml
       - run: docker info
+      - name: Preparar imagem de teste do executor
+        run: |
+          docker pull node:24-bookworm-slim
+          echo "APP_TOOLS_TEST_IMAGE=$(docker image inspect node:24-bookworm-slim --format '{{.Id}}')" >> "$GITHUB_ENV"
+          mkdir "$RUNNER_TEMP/office-docker-config"
+          echo '{"proxies":{"default":{"httpsProxy":"http://synthetic:synthetic@proxy.invalid"}}}' > "$RUNNER_TEMP/office-docker-config/config.json"
+          echo "DOCKER_CONFIG=$RUNNER_TEMP/office-docker-config" >> "$GITHUB_ENV"
       - name: Testes e pacote Java, incluindo PostgreSQL real
         working-directory: backend
         run: sh mvnw --batch-mode verify
       - name: Confirmar que a integração PostgreSQL foi executada
         run: |
-          python3 -c "import xml.etree.ElementTree as E; r=E.parse('backend/target/surefire-reports/TEST-dev.aidevoffice.PostgresIntegrationTest.xml').getroot(); assert r.attrib['skipped']=='0', 'Teste PostgreSQL ignorado'"
+          python3 - <<'PY'
+          import pathlib
+          import xml.etree.ElementTree as ET
+          for suite in ('PostgresIntegrationTest', 'tools.DockerToolIntegrationTest'):
+              report = pathlib.Path(f'backend/target/surefire-reports/TEST-dev.aidevoffice.{suite}.xml')
+              result = ET.parse(report).getroot()
+              assert int(result.attrib['tests']) > 0 and result.attrib['skipped'] == '0', f'{suite} ignorado'
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: backend
+          path: backend/target/ai-dev-office-*.jar
+          if-no-files-found: error
   frontend:
     runs-on: ubuntu-latest
     defaults:
@@ -29,6 +50,8 @@ jobs:
         working-directory: frontend
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
@@ -38,11 +61,43 @@ jobs:
       - run: npm test -- --watch=false
       - run: npm run build
       - run: npm audit --omit=dev --audit-level=moderate
+      - uses: actions/upload-artifact@v4
+        with:
+          name: frontend
+          path: frontend/dist/ai-dev-office/browser/
+          if-no-files-found: error
   compose:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - name: Validar Compose
         env:
           POSTGRES_PASSWORD: ci-validation-only
         run: docker compose -f infra/compose.yml config --quiet
+      - name: Exercitar backup e restauração PostgreSQL
+        env:
+          POSTGRES_PASSWORD: ci-validation-only
+        run: |
+          docker compose -f infra/compose.yml up -d --wait
+          trap 'docker compose -f infra/compose.yml down -v' EXIT
+          docker compose -f infra/compose.yml exec -T postgres psql -U office -d ai_dev_office -v ON_ERROR_STOP=1 -c "CREATE TABLE backup_probe (value text); INSERT INTO backup_probe VALUES ('phase-6');"
+          sh infra/backup-postgres.sh "$RUNNER_TEMP/office.dump"
+          sh infra/restore-postgres.sh "$RUNNER_TEMP/office.dump" office_restore_ci
+          result=$(docker compose -f infra/compose.yml exec -T postgres psql -U office -d office_restore_ci -Atc "SELECT value FROM backup_probe")
+          test "$result" = 'phase-6'
+      - name: Testar regras de alerta
+        run: |
+          docker run --rm -v "$PWD/infra/monitoring:/rules:ro" -w /rules --entrypoint /bin/promtool prom/prometheus:v3.5.0 test rules alerts.test.yml
+  dependency-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: google/osv-scanner-action/osv-scanner-action@0e457b42d0120153c352875e9b758b1e5c58c7e5 # v2.7.1
+        with:
+          scan-args: |-
+            --lockfile=./backend/pom.xml
+            --lockfile=./frontend/package-lock.json

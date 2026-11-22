@@ -2,7 +2,7 @@
 
 ## Visão geral
 
-Monorepositório com backend Spring Boot, frontend Angular standalone e PostgreSQL. As Fases 1 a 5 incluem plataforma, gestão, análise local, equipe multiagente sequencial, aprovação humana e eventos em tempo real no escritório 2D. Execução de código permanece planejada.
+Monorepositório com backend Spring Boot, frontend Angular standalone e PostgreSQL. Inclui gestão, análise local, equipe sequencial, aprovação humana, eventos em tempo real e propostas de execução isolada sob revisão.
 
 ```mermaid
 flowchart LR
@@ -45,7 +45,7 @@ O fluxo `team_runs` encadeia seis papéis locais, com `team_steps` e artefatos p
 | tasks | Backlog, critérios de aceite e estados | API pública de projects |
 | agents | Analista local, aprovações e execução sequencial de seis papéis | APIs de tasks e porta de IA |
 | orchestration | Passagem de contexto, tentativas, artefatos e aprovação do plano | APIs de tasks, agents, ai e events |
-| tools | Política e execução isolada de ferramentas (planejado) | Portas próprias para ambiente isolado |
+| tools | Aprovação, fila, execução efêmera e histórico de ferramentas JavaScript | PostgreSQL e daemon Docker dedicado |
 | events | Eventos persistidos, histórico REST e entrega WebSocket | Contratos versionados |
 | ai | Adaptador Spring AI/Ollama; outros provedores futuros | Porta AnalysisGenerator |
 | platform | Configuração transversal e saúde | Infraestrutura Spring |
@@ -64,4 +64,4 @@ Uma demanda gera uma execução persistida e passa pelos seis papéis locais. O 
 
 O backend é a fonte de verdade. Eventos persistidos são entregues por REST e WebSocket autenticado por ticket temporário de uso único. O canvas e a timeline representam os mesmos estados do backend; a recuperação usa cursor e histórico.
 
-Antes de executar código, implementar executor isolado com limites de CPU, memória, tempo, arquivos e rede. A aprovação deve vincular-se à operação e ao conteúdo revisado. Agentes não podem receber acesso livre ao host. Docker Compose atual fornece apenas PostgreSQL e não constitui uma sandbox de execução.
+O painel de ferramentas usa uma aprovação independente vinculada ao código, à ferramenta e à imagem. O worker passa código por stdin a um contêiner sem montagens do host e registra o resultado por projeto. O Compose fornece PostgreSQL. O daemon dedicado do executor tem configuração própria. [ADR 0008](adr/0008-isolated-tool-execution.md).

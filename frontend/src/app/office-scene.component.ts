@@ -1,10 +1,11 @@
-import { AfterViewInit, Component, ElementRef, Input, OnChanges, OnDestroy, ViewChild } from '@angular/core';
+import { AfterViewInit, Component, ElementRef, Input, OnChanges, OnDestroy, ViewChild, ChangeDetectionStrategy } from '@angular/core';
 import { TeamRunStep } from './team.service';
 
 @Component({
   selector: 'app-office-scene',
   standalone: true,
   template: '<canvas #scene aria-hidden="true"></canvas>',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styles: [':host{display:block;width:100%;height:300px;background:#eaf3f4;border-radius:14px;overflow:hidden}canvas{display:block;width:100%;height:100%}'],
 })
 export class OfficeSceneComponent implements AfterViewInit,OnChanges,OnDestroy {
