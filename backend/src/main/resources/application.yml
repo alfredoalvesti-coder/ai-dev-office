@@ -18,10 +18,15 @@ spring:
     open-in-view: false
     hibernate:
       ddl-auto: validate
+  jackson:
+    use-jackson2-defaults: true
   flyway:
     enabled: true
     default-schema: ${SPRING_FLYWAY_DEFAULT_SCHEMA:public}
 app:
+  tools:
+    enabled: ${APP_TOOLS_ENABLED:false}
+    image: ${APP_TOOLS_IMAGE:}
   security:
     username: ${APP_USERNAME:office}
     password: ${APP_PASSWORD:}
@@ -44,7 +49,14 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info
+        include: health,info,metrics,prometheus
+  tracing:
+    sampling:
+      probability: ${APP_TRACE_SAMPLE_RATE:0.1}
+    export:
+      zipkin:
+        enabled: ${APP_TRACE_EXPORT:false}
+        endpoint: ${APP_TRACE_ENDPOINT:http://127.0.0.1:9411/api/v2/spans}
   endpoint:
     health:
       show-details: never

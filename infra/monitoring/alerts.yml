@@ -1,0 +1,28 @@
+groups:
+  - name: ai-dev-office
+    rules:
+      - alert: OfficeMetricsUnavailable
+        expr: up{job="ai-dev-office"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: Métricas do AI Dev Office indisponíveis
+      - alert: OfficeToolFailures
+        expr: sum(increase(office_tools_runs_total{status=~"FAILED|TIMED_OUT"}[15m])) >= 3
+        labels:
+          severity: warning
+        annotations:
+          summary: Falhas repetidas em ferramentas isoladas
+      - alert: OfficeToolCleanupFailure
+        expr: sum(increase(office_tools_cleanup_failures_total[10m])) > 0
+        labels:
+          severity: critical
+        annotations:
+          summary: Limpeza de um ambiente de execução pendente
+      - alert: OfficeToolUsage
+        expr: sum(increase(office_tools_duration_seconds_sum[15m])) > 450
+        labels:
+          severity: warning
+        annotations:
+          summary: Ferramentas ocuparam mais de 450 segundos nos últimos 15 minutos

@@ -1,6 +1,6 @@
 # Roadmap e backlog de Issues
 
-Fases 1 a 5 implementadas no escopo descrito nas respectivas seções. Execução de código e engenharia de produção continuam na Fase 6. Os itens abaixo são rascunhos locais prontos para virar Issues quando a publicação for autorizada. Nenhuma Issue foi criada no GitHub.
+As fases 1 a 5 cobrem gestão, agentes e escritório 2D. A Fase 6 acrescenta execução isolada, observabilidade e procedimentos de entrega no escopo de uma demonstração privada. Os itens abaixo registram os critérios de cada fase.
 
 ## Fase 1 — Fundação
 
@@ -141,6 +141,8 @@ Dependências — F5-01.
 Testes sugeridos — Cada estado real, reconexão, baixa taxa de quadros, viewport reduzido e coerência entre histórico e animação.
 
 ## Fase 6 — Engenharia de produção
+
+Status — Ferramentas JavaScript com aprovação, histórico, métricas, tracing e runbook de entrega implementados no escopo documentado. Consulte o [ADR 0008](adr/0008-isolated-tool-execution.md) e o [guia de operação](learning/phase-six.md).
 
 ### F6-01 — Execução isolada e política de ferramentas
 

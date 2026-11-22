@@ -1,0 +1,50 @@
+<h2>Ferramentas isoladas</h2>
+@if (enabled() === false) {
+  <p>Executor desativado. A configuração do servidor libera propostas para aprovação.</p>
+}
+@if (enabled()) {
+  <form (ngSubmit)="propose()">
+    <label>Ferramenta
+      <select name="tool" [(ngModel)]="tool" [disabled]="pending()">
+        <option value="NODE_CHECK">Verificar sintaxe JavaScript</option>
+        <option value="NODE_RUN">Executar JavaScript</option>
+      </select>
+    </label>
+    <label>Código para revisão
+      <textarea name="source" [(ngModel)]="source" [disabled]="pending()" rows="5" maxlength="8192" required></textarea>
+    </label>
+    <button type="submit" mat-flat-button [disabled]="pending() || !source.trim()">Criar proposta</button>
+  </form>
+}
+@if (listError()) { <p role="alert">{{ listError() }}</p> }
+@if (actionError()) { <p role="alert">{{ actionError() }}</p> }
+@for (run of runs(); track run.id) {
+  <article>
+    <h3>{{ run.tool === 'NODE_CHECK' ? 'Verificação de sintaxe' : 'Execução JavaScript' }}</h3>
+    <p role="status">{{ labels[run.status] }}</p>
+    <details [open]="run.status === 'AWAITING_APPROVAL'">
+      <summary>Conteúdo aprovado ou em revisão</summary>
+      <pre>{{ run.source }}</pre>
+      <p class="identity">Hash SHA-256 {{ run.hash }}</p>
+      @if (run.image) { <p class="identity">Imagem {{ run.image }}</p> }
+      @if (run.approvedBy) { <p>Aprovação de {{ run.approvedBy }}</p> }
+    </details>
+    @if (run.output) {
+      <details>
+        <summary>Saída{{ run.outputTruncated ? ' (truncada)' : '' }}</summary>
+        <pre>{{ run.output }}</pre>
+      </details>
+    }
+    @if (run.errorCode) { <p>Código do erro {{ run.errorCode }}</p> }
+    @if (run.status === 'AWAITING_APPROVAL' || run.status === 'QUEUED' || run.status === 'RUNNING') {
+      <div class="actions">
+        @if (run.status === 'AWAITING_APPROVAL' && enabled()) {
+          <button type="button" mat-flat-button [disabled]="pending()" (click)="decide(run, 'approve')">Aprovar execução</button>
+        }
+        <button type="button" mat-stroked-button [disabled]="pending()" (click)="decide(run, 'cancel')">Cancelar</button>
+      </div>
+    }
+  </article>
+} @empty {
+  @if (enabled() !== undefined) { <p>Nenhuma proposta neste projeto.</p> }
+}

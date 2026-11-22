@@ -1,0 +1,44 @@
+rule_files:
+  - alerts.yml
+evaluation_interval: 1m
+tests:
+  - interval: 1m
+    input_series:
+      - series: 'up{job="ai-dev-office"}'
+        values: '1 0 0 0 0'
+      - series: 'office_tools_runs_total{tool="NODE_RUN",status="FAILED"}'
+        values: '0 1 2 3 4'
+      - series: 'office_tools_cleanup_failures_total'
+        values: '0 0 1 1 1'
+      - series: 'office_tools_duration_seconds_sum{tool="NODE_RUN"}'
+        values: '0 150 300 450 600'
+    alert_rule_test:
+      - eval_time: 4m
+        alertname: OfficeMetricsUnavailable
+        exp_alerts:
+          - exp_labels:
+              job: ai-dev-office
+              severity: critical
+            exp_annotations:
+              summary: Métricas do AI Dev Office indisponíveis
+      - eval_time: 4m
+        alertname: OfficeToolFailures
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+            exp_annotations:
+              summary: Falhas repetidas em ferramentas isoladas
+      - eval_time: 4m
+        alertname: OfficeToolCleanupFailure
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+            exp_annotations:
+              summary: Limpeza de um ambiente de execução pendente
+      - eval_time: 4m
+        alertname: OfficeToolUsage
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+            exp_annotations:
+              summary: Ferramentas ocuparam mais de 450 segundos nos últimos 15 minutos

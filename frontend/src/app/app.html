@@ -248,6 +248,15 @@
           }
         </mat-card-content>
       </mat-card>
+      @if (selectedProjectId()) {
+        <mat-card>
+          <mat-card-content>
+            @for (project of [selectedProjectId()]; track project) {
+              <app-tool-runs [projectId]="project" />
+            }
+          </mat-card-content>
+        </mat-card>
+      }
     </section>
   }
 </main>
