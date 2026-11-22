@@ -1,42 +1,67 @@
 # Arquitetura
 
-## Fundação implementada
+## Visão geral
 
-Monorepositório com um backend Spring Boot, frontend Angular standalone e banco PostgreSQL. A Fase 1 contém configuração, migração inicial, observabilidade de saúde e uma página que consulta o backend. Os módulos de negócio abaixo são contratos de evolução. Ainda não possuem casos de uso.
+Monorepositório com backend Spring Boot, frontend Angular standalone e PostgreSQL. As Fases 1 a 5 incluem plataforma, gestão, análise local, equipe multiagente sequencial, aprovação humana e eventos em tempo real no escritório 2D. Execução de código permanece planejada.
 
 ```mermaid
 flowchart LR
     Angular[Angular / Signals / Material] -->|HTTP via proxy local| Boot[Spring Boot]
     Boot --> Actuator[Health e readiness]
+    Boot --> Security[HTTP Basic local]
+    Boot --> Projects[Projetos]
+    Boot --> Tasks[Tarefas e histórico]
+    Boot --> Agents[Analista, execuções e aprovações]
+    Agents --> Ollama[Ollama local]
+    Boot --> Events[Eventos REST e WebSocket]
+    Events --> Office[Canvas e timeline]
     Boot --> Flyway[Flyway e JPA]
     Flyway --> PostgreSQL[(PostgreSQL)]
 ```
 
-## Limites dos módulos planejados
+## Gestão implementada
 
-| Pacote futuro | Responsabilidade | Dependências permitidas |
+`projects` expõe criação e listagem paginada, com limites e ordenação estável. `tasks` expõe criação e consulta por projeto, alteração de estado com controle de versão, dependências do mesmo projeto e histórico de estados. Tarefas começam em `TODO`; só passam para `IN_PROGRESS` quando suas dependências estão `DONE`. Transições inválidas, dependências cíclicas e versões antigas retornam conflito. A validação do schema Hibernate é baseada nas migrações Flyway.
+
+O acesso usa o usuário único configurado no ambiente. Veja [ADR 0004](adr/0004-phase-two-access.md). Não há isolamento por usuário, autenticação federada ou endpoints de exclusão nesta fase.
+
+Rotas de gestão (todas exigem HTTP Basic):
+
+- `POST /api/projects` e `GET /api/projects?page=0&size=20`.
+- `POST /api/projects/{projectId}/tasks` e `GET /api/projects/{projectId}/tasks`.
+- `PUT /api/tasks/{taskId}/status`, com `status` e `version` no corpo.
+- `PUT /api/tasks/{taskId}/dependencies`, com `dependencyIds` e `version` no corpo.
+- `GET /api/tasks/{taskId}/history`.
+
+## Módulos implementados e limites
+
+O módulo `agents` persiste execuções, tentativas, eventos e decisões. A geração usa uma porta (`AnalysisGenerator`) com adaptador Spring AI/Ollama. A fila local tem concorrência 1; a interface consulta o estado real e apresenta rascunhos para aprovação. Não há execução de ferramentas ou código. Veja o [guia da Fase 3](learning/phase-three.md).
+
+O fluxo `team_runs` encadeia seis papéis locais, com `team_steps` e artefatos por tentativa. QA produz uma revisão textual e o revisor fecha a recomendação; a pessoa usuária decide. `project_events` guarda o cursor transacional usado por REST e WebSocket. O endpoint WebSocket só aceita tickets de projeto, de uso único e curtos. O Canvas ilustra os estados; a timeline HTML mantém alternativa acessível. Veja [Fases 4 e 5](learning/phases-four-five.md).
+
+| Pacote | Responsabilidade | Dependências permitidas |
 | --- | --- | --- |
 | projects | Projetos e metadados | Nenhum domínio externo |
 | tasks | Backlog, critérios de aceite e estados | API pública de projects |
-| agents | Cadastro, papéis e configuração | Nenhuma implementação de LLM |
-| orchestration | Execuções, dependências e transições | APIs de tasks, agents, ai, tools e events |
-| tools | Política, aprovação e execução de ferramentas | Portas próprias para ambiente isolado |
-| events | Eventos persistidos e monitoramento | Contratos versionados |
-| ai | Adaptadores dos modelos e contexto | SDK escolhido na Fase 3 |
+| agents | Analista local, aprovações e execução sequencial de seis papéis | APIs de tasks e porta de IA |
+| orchestration | Passagem de contexto, tentativas, artefatos e aprovação do plano | APIs de tasks, agents, ai e events |
+| tools | Política e execução isolada de ferramentas (planejado) | Portas próprias para ambiente isolado |
+| events | Eventos persistidos, histórico REST e entrega WebSocket | Contratos versionados |
+| ai | Adaptador Spring AI/Ollama; outros provedores futuros | Porta AnalysisGenerator |
 | platform | Configuração transversal e saúde | Infraestrutura Spring |
 
-Começar com pacotes por negócio, dentro deles separar API, aplicação, domínio e infraestrutura conforme os primeiros casos de uso surgirem. Entidades JPA não atravessam contratos HTTP. DTOs e Bean Validation serão adicionados junto dos endpoints de gestão. Repository será a interface Spring Data para persistência. Strategy só será necessária quando existirem estratégias distintas, como provedores de modelos. Evitar classes base, fábricas e interfaces sem consumidores reais.
+Começar com pacotes por negócio, dentro deles separar API, aplicação, domínio e infraestrutura conforme os primeiros casos de uso surgirem. Entidades JPA não atravessam contratos HTTP. DTOs e Bean Validation são usados nas APIs de gestão. Repository é a interface Spring Data para persistência. Strategy só será necessária quando existirem estratégias distintas, como provedores de modelos. Evitar classes base, fábricas e interfaces sem consumidores reais.
 
 ## Saúde e segurança
 
-`/actuator/health` informa estado geral. `/actuator/health/liveness` informa vida do processo. `/actuator/health/readiness` também verifica o banco. Ausência do banco pode impedir a inicialização porque Flyway valida a migração no startup. Respostas públicas omitem detalhes internos. OpenAPI e Swagger UI estão liberados nesta fundação local. Demais rotas são negadas. Autenticação e autorização do usuário pertencem à fase de gestão e exigem decisão própria antes de disponibilizar APIs reais.
+`/actuator/health` informa estado geral. `/actuator/health/liveness` informa vida do processo. `/actuator/health/readiness` também verifica o banco. Ausência do banco pode impedir a inicialização porque Flyway valida a migração no startup. Respostas públicas omitem detalhes internos. Health permanece público; APIs de gestão e OpenAPI exigem a credencial definida por ambiente, conforme o [ADR 0004](adr/0004-phase-two-access.md). O backend escuta em loopback por padrão.
 
 Logs usam JSON ECS. Não registrar prompts completos, credenciais nem conteúdo de arquivos por padrão. O Compose publica PostgreSQL somente em loopback. Segredos são fornecidos por ambiente, `.env` fica ignorado pelo Git. O backend recebe variáveis do processo. O Compose também lê `.env`, com precedência das variáveis do processo. O backend não interpreta o arquivo `.env` como propriedades Java.
 
-## Evolução multiagente
+## Fluxo multiagente e trabalho futuro
 
-Uma demanda gera tarefas e execuções persistidas. Cada tentativa terá identificador próprio, versão de contexto, timestamps, modelo, consumo, ferramentas, decisões e artefatos. Transições precisam validar o estado anterior e tolerar reentrega de eventos. Cancelamento, timeout e falha parcial devem ser estados auditáveis. Persistir eventos com a mudança de estado, usando outbox quando o envio assíncrono for implementado.
+Uma demanda gera uma execução persistida e passa pelos seis papéis locais. O contexto é acumulado entre passos e os artefatos, tentativas e falhas ficam registrados. Saídas inválidas recebem uma repetição limitada. Após o revisor, o plano aguarda aprovação humana vinculada ao hash; aprovar cria tarefas em `TODO`.
 
-O backend será a fonte de verdade. WebSocket deverá retransmitir eventos reais. O Phaser consumirá esses mesmos eventos na Fase 5. Reconexão exigirá cursor e recuperação de histórico. Nenhuma animação deve inventar progresso.
+O backend é a fonte de verdade. Eventos persistidos são entregues por REST e WebSocket autenticado por ticket temporário de uso único. O canvas e a timeline representam os mesmos estados do backend; a recuperação usa cursor e histórico.
 
-Antes de executar código, implementar executor isolado com limites de CPU, memória, tempo, arquivos e rede. Aprovação humana deve ser vinculada à operação exata e ao conteúdo revisado, com expiração e invalidação quando mudar. Somente o serviço de execução poderá liberar credenciais mínimas. Agentes não recebem acesso livre ao host. Docker Compose desta fase fornece apenas PostgreSQL e não constitui uma sandbox de execução de agentes.
+Antes de executar código, implementar executor isolado com limites de CPU, memória, tempo, arquivos e rede. A aprovação deve vincular-se à operação e ao conteúdo revisado. Agentes não podem receber acesso livre ao host. Docker Compose atual fornece apenas PostgreSQL e não constitui uma sandbox de execução.

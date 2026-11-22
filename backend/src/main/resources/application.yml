@@ -1,6 +1,15 @@
 spring:
   application:
     name: ai-dev-office
+  ai:
+    model:
+      chat: ollama
+    ollama:
+      base-url: ${OLLAMA_BASE_URL:http://localhost:11434}
+      init:
+        pull-model-strategy: never
+      chat:
+        model: ${OLLAMA_MODEL:qwen2.5:3b}
   datasource:
     url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/ai_dev_office}
     username: ${POSTGRES_USER:office}
@@ -11,8 +20,26 @@ spring:
       ddl-auto: validate
   flyway:
     enabled: true
+    default-schema: ${SPRING_FLYWAY_DEFAULT_SCHEMA:public}
+app:
+  security:
+    username: ${APP_USERNAME:office}
+    password: ${APP_PASSWORD:}
+  agents:
+    output-token-limit: ${AI_OUTPUT_TOKEN_LIMIT:1200}
+    timeout-seconds: ${AI_TIMEOUT_SECONDS:180}
+    max-attempts: ${AI_MAX_ATTEMPTS:3}
+    approval-hours: ${AI_APPROVAL_HOURS:24}
+    prompt-version: analyst-prompt-v1
+  team:
+    output-token-limit: ${TEAM_OUTPUT_TOKEN_LIMIT:800}
+    max-attempts: ${TEAM_MAX_ATTEMPTS:3}
+    context-version: ${TEAM_CONTEXT_VERSION:team-workflow-v1}
+  websocket:
+    allowed-origins: "${APP_WEBSOCKET_ALLOWED_ORIGINS:http://localhost:4200,http://127.0.0.1:4200}"
 server:
   port: ${SERVER_PORT:8080}
+  address: ${SERVER_ADDRESS:127.0.0.1}
 management:
   endpoints:
     web:

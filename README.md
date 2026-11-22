@@ -6,9 +6,9 @@ O projeto é um ambiente de aprendizado profissional e portfólio para Full Stac
 
 ## Status atual
 
-Fundação da Fase 1 criada. Backend mínimo, frontend com consulta real de saúde, migração inicial, Compose PostgreSQL, testes básicos, documentação e workflow de CI estão presentes. Consulte [a validação local](docs/validation.md) para distinguir o que foi executado das verificações pendentes.
+Fases 1 a 5 implementadas no escopo descrito no roadmap: gestão, analista local, equipe multiagente, aprovação humana e escritório 2D com eventos reais. A equipe analisa demandas e cria tarefas após aprovação; ainda não escreve nem executa código. APIs exigem credenciais locais. Consulte [validação das Fases 4 e 5](docs/validation-phases-four-five.md) e a [validação local](docs/validation.md).
 
-Gestão de projetos e tarefas, integração com modelos, agentes, WebSocket, ferramentas e escritório virtual são funcionalidades planejadas. O escritório 2D deverá refletir eventos reais do backend.
+Execução de código isolada, política de ferramentas e observabilidade de produção permanecem planejadas para a Fase 6. O escritório 2D exibe eventos reais persistidos pelo backend.
 
 Licença pendente por decisão do titular. A inclusão da MIT será avaliada posteriormente. A publicação pública ainda depende dessa definição e de autorização.
 
@@ -21,11 +21,11 @@ Licença pendente por decisão do titular. A inclusão da MIT será avaliada pos
 - JUnit 5, Mockito disponível no starter de testes, MockMvc, H2, Testcontainers e Vitest.
 - Docker Compose e GitHub Actions configurados.
 
-As versões foram verificadas em fontes oficiais e fixadas no POM e lockfile. Veja [compatibilidade e pendências](docs/versions.md). O uso de Spring AI ou LangChain4j está em avaliação para a Fase 3.
+As versões foram verificadas em fontes oficiais e fixadas no POM e lockfile. Veja [compatibilidade e pendências](docs/versions.md). A integração de IA usa Spring AI com Ollama local.
 
 ## Arquitetura
 
-Monólito modular com frontend separado no mesmo repositório. A fundação implementa configuração de plataforma. Os módulos de projetos, tarefas, agentes, orquestração, ferramentas, eventos e IA serão introduzidos conforme os casos de uso.
+Monólito modular com frontend separado no mesmo repositório. Os módulos implementados cobrem plataforma, projetos, tarefas, análise local, orquestração sequencial da equipe e eventos do escritório. Execução isolada de ferramentas permanece planejada.
 
 ```mermaid
 flowchart LR
@@ -74,6 +74,15 @@ Copy-Item .env.example .env
 
 O exemplo usa o banco `ai_dev_office`, usuário `office` e porta 5432. Forneça a senha no ambiente do terminal. Ela será herdada pelo Compose e pelo backend iniciado no mesmo terminal. O `.env` é usado pelo Compose e fica ignorado pelo Git. O backend lê variáveis de ambiente do processo.
 
+No mesmo terminal, configure também a credencial da aplicação:
+
+```powershell
+$env:APP_USERNAME = 'office'
+$env:APP_PASSWORD = Read-Host 'Senha da aplicação' -MaskInput
+```
+
+Use uma senha diferente da senha do PostgreSQL. O login é de usuário único para desenvolvimento local; não há contas ou isolamento por pessoa nesta fase.
+
 ```powershell
 $env:POSTGRES_PASSWORD = Read-Host 'Senha do PostgreSQL local' -MaskInput
 docker compose --env-file .env -f infra/compose.yml config --quiet
@@ -102,7 +111,15 @@ Em Linux/macOS, use `sh mvnw spring-boot:run`. Na primeira execução, o Wrapper
 - Liveness em `http://localhost:8080/actuator/health/liveness`.
 - OpenAPI em `http://localhost:8080/v3/api-docs` e interface em `http://localhost:8080/swagger-ui.html`.
 
-Outras rotas são negadas pela configuração de segurança da fundação. Ainda não há login de usuário ou endpoints de gestão. Os logs de produção usam JSON ECS.
+### Analista local (Fase 3)
+
+Instale o Ollama separadamente e baixe o modelo uma vez com `ollama pull qwen2.5:3b`. O projeto usa por padrão `http://localhost:11434`; configure `OLLAMA_BASE_URL` ou `OLLAMA_MODEL` no ambiente do backend para alterar. O startup não instala Ollama nem baixa modelos. Com o serviço local ativo, abra um projeto e envie uma demanda no painel “Analista local”. A saída é apenas um rascunho; aprove o hash exibido para criar suas tarefas. Veja [guia da Fase 3](docs/learning/phase-three.md) e [ADR 0005](docs/adr/0005-local-ai-provider.md).
+
+### Equipe e escritório 2D (Fases 4 e 5)
+
+No painel “Equipe multiagente e escritório”, envie uma demanda para seis papéis Ollama sequenciais. Os passos aparecem na timeline e na sala 2D; ao final, revise o plano agregado e aprove pelo hash para criar tarefas. WebSocket transmite eventos reais e o histórico REST recupera a conexão. Não há execução de código ou ferramentas. Detalhes: [guia Fases 4/5](docs/learning/phases-four-five.md), [ADR 0006](docs/adr/0006-sequential-agent-team.md), [ADR 0007](docs/adr/0007-office-events-and-canvas.md).
+
+Rotas de gestão e OpenAPI exigem HTTP Basic. Configure `APP_USERNAME` e `APP_PASSWORD` no ambiente do terminal que inicia o backend; o exemplo usa `office` como usuário. A tela Angular solicita essas credenciais e as mantém apenas em memória. Health continua público. O backend escuta em loopback por padrão; uma exposição de rede exige HTTPS e revisão da política de usuários. Os logs de produção usam JSON ECS.
 
 ### 3. Frontend
 
@@ -144,7 +161,7 @@ Execução de código gerado exige antecipar a entrega de isolamento da Fase 6. 
 
 ## Objetivos de aprendizado
 
-Aplicar arquitetura modular, injeção de dependência, transações, migrações, testes de contrato, segurança, reatividade e orquestração auditável. Relacionar Spring com a experiência em Apex e Angular com LWC quando ajudar na compreensão. [Conceitos e exercícios da fundação](docs/learning/foundation.md).
+Aplicar arquitetura modular, injeção de dependência, transações, migrações, testes de contrato, segurança, reatividade e orquestração auditável. Relacionar Spring com a experiência em Apex e Angular com LWC quando ajudar na compreensão. Leia [os conceitos da fundação](docs/learning/foundation.md) e [os conceitos da Fase 2](docs/learning/phase-two.md).
 
 ## Contribuição
 

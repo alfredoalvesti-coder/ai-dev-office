@@ -2,6 +2,7 @@
 .env.*
 !.env.example
 .tools/
+.maven-home/
 .m2/
 **/target/
 **/node_modules/

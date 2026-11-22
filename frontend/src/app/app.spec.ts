@@ -1,13 +1,14 @@
 import { TestBed } from '@angular/core/testing';
-import { provideHttpClient } from '@angular/common/http';
+import { provideHttpClient, withInterceptors } from '@angular/common/http';
 import { provideHttpClientTesting, HttpTestingController } from '@angular/common/http/testing';
 import { App } from './app';
+import { basicAuthInterceptor } from './basic-auth.interceptor';
 
 describe('App', () => {
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [App],
-      providers: [provideHttpClient(), provideHttpClientTesting()],
+      providers: [provideHttpClient(withInterceptors([basicAuthInterceptor])), provideHttpClientTesting()],
     }).compileComponents();
   });
 
@@ -72,5 +73,43 @@ describe('App', () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  it('loads the project dashboard only after authenticated access succeeds', async () => {
+    const fixture = TestBed.createComponent(App);
+    fixture.detectChanges();
+    const http = TestBed.inject(HttpTestingController);
+    http.expectOne('/actuator/health/readiness').flush({ status: 'UP' });
+
+    fixture.componentInstance.username = 'tester';
+    fixture.componentInstance.password = 'test-password';
+    fixture.componentInstance.signIn();
+    fixture.detectChanges();
+
+    const request = http.expectOne('/api/projects?page=0&size=20');
+    expect(request.request.headers.get('Authorization')).toBe(`Basic ${btoa('tester:test-password')}`);
+    request.flush({ content: [], number: 0, size: 20, totalElements: 0, totalPages: 0 });
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(fixture.nativeElement.textContent).toContain('Projetos cadastrados');
+    expect(fixture.nativeElement.textContent).toContain('Nenhum projeto');
+  });
+
+  it('keeps the access form visible when credentials are rejected', async () => {
+    const fixture = TestBed.createComponent(App);
+    fixture.detectChanges();
+    const http = TestBed.inject(HttpTestingController);
+    http.expectOne('/actuator/health/readiness').flush({ status: 'UP' });
+
+    fixture.componentInstance.username = 'tester';
+    fixture.componentInstance.password = 'wrong';
+    fixture.componentInstance.signIn();
+    const request = http.expectOne('/api/projects?page=0&size=20');
+    request.flush({}, { status: 401, statusText: 'Unauthorized' });
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.textContent).toContain('Entrar');
+    expect(fixture.nativeElement.textContent).toContain('Confira as credenciais');
   });
 });

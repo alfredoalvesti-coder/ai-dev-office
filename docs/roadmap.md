@@ -1,6 +1,6 @@
 # Roadmap e backlog de Issues
 
-Somente a Fase 1 está em implementação. Os itens abaixo são rascunhos locais prontos para virar Issues quando a publicação for autorizada. Nenhuma Issue foi criada no GitHub.
+Fases 1 a 5 implementadas no escopo descrito nas respectivas seções. Execução de código e engenharia de produção continuam na Fase 6. Os itens abaixo são rascunhos locais prontos para virar Issues quando a publicação for autorizada. Nenhuma Issue foi criada no GitHub.
 
 ## Fase 1 — Fundação
 
@@ -36,13 +36,15 @@ Testes sugeridos — HTTP UP, DOWN, 503, timeout e nova tentativa. No CI exigir 
 
 ## Fase 2 — Gestão
 
+Status — Implementada. Inclui projetos e tarefas autenticados, critérios de aceite, dependências, transições validadas, controle de concorrência, histórico e dashboard Angular. Ver [ADR 0004](adr/0004-phase-two-access.md) para a decisão de acesso.
+
 ### F2-01 — Cadastro e consulta de projetos
 
 Descrição — Entregar o primeiro caso de uso persistido com nome, descrição e timestamps.
 
-Critérios de aceite — Criar e listar projetos, validar entrada, paginação, DTOs, transação, migração e respostas de erro consistentes. Definir autenticação e autorização antes de liberar dados de usuários.
+Critérios de aceite — Criar e listar projetos, validar entrada, paginação, DTOs, transação, migração e respostas de erro consistentes. A fase usa a credencial local descrita no ADR 0004; autenticação multiusuário exige decisão própria.
 
-Dependências — F1-02 e decisão sobre identidade e permissões.
+Dependências — F1-02 e ADR 0004.
 
 Testes sugeridos — Dados válidos e inválidos, limites de tamanho, paginação, acesso negado e integração PostgreSQL.
 
@@ -68,6 +70,8 @@ Testes sugeridos — Validação de formulário, erro HTTP, navegação por tecl
 
 ## Fase 3 — Agentes
 
+Status — Primeiro analista local implementado com Ollama, execuções e decisões persistidas e aprovação humana antes de criar tarefas. Equipe multiagente, ferramentas e execução de código continuam futuras. Veja [ADR 0005](adr/0005-local-ai-provider.md).
+
 ### F3-01 — Escolha de SDK e primeiro agente
 
 Descrição — Comparar Spring AI e LangChain4j e implementar o agente analista com provedor configurável.
@@ -90,6 +94,8 @@ Testes sugeridos — Reentrega, falha parcial, retomada após reinício, aprova�
 
 ## Fase 4 — Equipe multiagente
 
+Status — Implementada equipe local sequencial com seis papéis, contexto versionado, artefatos/eventos persistidos, revisão QA textual e aprovação humana final. Nenhum papel executa código. Veja [ADR 0006](adr/0006-sequential-agent-team.md).
+
 ### F4-01 — Papéis e passagem de contexto
 
 Descrição — Implementar PM, arquiteto, desenvolvedor, QA e revisor sobre a base do analista.
@@ -111,6 +117,8 @@ Dependências — F4-01 e F6-01 para executar código gerado.
 Testes sugeridos — QA falhando, revisão reprovada, correção insuficiente, limite de rodadas e aprovação final recusada.
 
 ## Fase 5 — Escritório virtual
+
+Status — Implementados eventos persistidos com cursor, recuperação REST, entrega WebSocket autenticada por ticket de uso único e sala 2D Canvas com timeline acessível, usando estados reais. Veja [ADR 0007](adr/0007-office-events-and-canvas.md).
 
 ### F5-01 — Eventos em tempo real
 

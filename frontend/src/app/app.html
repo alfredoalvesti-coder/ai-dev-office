@@ -1,42 +1,253 @@
 <main>
   <header>
-    <p class="eyebrow">Fundação da plataforma</p>
+    <p class="eyebrow">AI Dev Office · Gestão de trabalho</p>
     <h1>AI Dev Office</h1>
-    <p>Uma base para construir software com colaboração entre pessoas e agentes.</p>
+    <p>Organize projetos, tarefas e critérios de aceite em um só lugar.</p>
   </header>
-  <section aria-label="Estado da plataforma">
+
+  <section class="health" aria-label="Estado da plataforma">
     <mat-card appearance="outlined">
-      <mat-card-header><mat-card-title>Conexão com o backend</mat-card-title></mat-card-header>
       <mat-card-content aria-live="polite" aria-atomic="true">
         @switch (status()) {
-          @case ('loading') {
-            <p class="status">Verificando…</p>
-          }
-          @case ('up') {
-            <p class="status available">Disponível</p>
-            <p>O backend respondeu que está pronto para receber requisições.</p>
-          }
-          @case ('down') {
-            <p class="status">Indisponível</p>
-            <p>Confira se o backend e o PostgreSQL estão em execução e tente novamente.</p>
-          }
+          @case ('loading') { <p class="status">Verificando backend…</p> }
+          @case ('up') { <p class="status available">Backend Disponível</p> }
+          @case ('down') { <p class="status">Backend Indisponível</p> }
         }
       </mat-card-content>
       <mat-card-actions>
-        <button mat-stroked-button (click)="checkHealth()" [disabled]="status() === 'loading'">
-          Verificar novamente
-        </button>
+        <button mat-stroked-button (click)="checkHealth()" [disabled]="status() === 'loading'">Verificar novamente</button>
       </mat-card-actions>
     </mat-card>
-    <mat-card appearance="outlined">
-      <mat-card-header><mat-card-title>Fundação da plataforma</mat-card-title></mat-card-header>
-      <mat-card-content>
-        <p>Esta entrega prepara a aplicação, o banco de dados e os testes.</p>
-        <p>
-          Gestão de projetos, agentes de IA e escritório virtual serão desenvolvidos nas próximas
-          fases.
-        </p>
-      </mat-card-content>
-    </mat-card>
   </section>
+
+  @if (!signedIn()) {
+    <section aria-label="Acesso">
+      <mat-card appearance="outlined">
+        <mat-card-header><mat-card-title>Entrar</mat-card-title></mat-card-header>
+        <mat-card-content>
+          <p>Use as credenciais configuradas no backend para acessar seus projetos.</p>
+          <form (ngSubmit)="signIn()">
+            <label>Usuário<input name="username" [(ngModel)]="username" autocomplete="username" required /></label>
+            <label>Senha<input name="password" [(ngModel)]="password" type="password" autocomplete="current-password" required /></label>
+            <button mat-flat-button type="submit" [disabled]="busy()">Entrar</button>
+          </form>
+          @if (error()) { <p class="error" role="alert">{{ error() }}</p> }
+        </mat-card-content>
+      </mat-card>
+    </section>
+  } @else {
+    <div class="toolbar">
+      <p>Conectado como <strong>{{ username }}</strong></p>
+      <button mat-stroked-button (click)="signOut()">Sair</button>
+    </div>
+    @if (error()) { <p class="error" role="alert">{{ error() }}</p> }
+
+    <section class="workspace" aria-label="Projetos e tarefas">
+      <mat-card appearance="outlined">
+        <mat-card-header><mat-card-title>Projetos</mat-card-title></mat-card-header>
+        <mat-card-content>
+          <form (submit)="createProject($event)">
+            <label>Nome<input name="projectName" [(ngModel)]="projectName" maxlength="120" required /></label>
+            <label>Descrição<textarea name="projectDescription" [(ngModel)]="projectDescription" maxlength="2000" rows="3"></textarea></label>
+            <button mat-flat-button type="submit" [disabled]="busy()">Criar projeto</button>
+          </form>
+          <h3>Projetos cadastrados</h3>
+          @if (projects().length === 0 && !busy()) {
+            <p class="muted">Nenhum projeto nesta página. Crie o primeiro para começar.</p>
+          } @else {
+            <ul class="project-list">
+              @for (project of projects(); track project.id) {
+                <li>
+                  <button class="project-choice" [class.selected]="selectedProjectId() === project.id" (click)="selectProject(project.id)">
+                    <strong>{{ project.name }}</strong>
+                    @if (project.description) { <span>{{ project.description }}</span> }
+                  </button>
+                </li>
+              }
+            </ul>
+          }
+          <div class="pagination">
+            <button mat-button (click)="loadProjects(page() - 1)" [disabled]="page() === 0 || busy()">Anterior</button>
+            <span>Página {{ page() + 1 }} de {{ totalPages() || 1 }}</span>
+            <button mat-button (click)="loadProjects(page() + 1)" [disabled]="page() + 1 >= totalPages() || busy()">Próxima</button>
+          </div>
+        </mat-card-content>
+      </mat-card>
+
+      <mat-card appearance="outlined">
+        <mat-card-header><mat-card-title>Tarefas</mat-card-title></mat-card-header>
+        <mat-card-content>
+          @if (!selectedProjectId()) {
+            <p class="muted">Selecione um projeto para consultar ou criar tarefas.</p>
+          } @else {
+            <form (submit)="createTask($event)">
+              <label>Título<input name="taskTitle" [(ngModel)]="taskTitle" maxlength="180" required /></label>
+              <label>Descrição<textarea name="taskDescription" [(ngModel)]="taskDescription" maxlength="4000" rows="2"></textarea></label>
+              <label>Critérios de aceite <span class="muted">(um por linha)</span>
+                <textarea name="taskCriteria" [(ngModel)]="taskCriteria" rows="3"></textarea>
+              </label>
+              @if (tasks().length) {
+                <label>Depende destas tarefas
+                  <select multiple name="taskDependencies" [(ngModel)]="taskDependencyIds" size="3">
+                    @for (task of tasks(); track task.id) { <option [value]="task.id">{{ task.title }}</option> }
+                  </select>
+                </label>
+              }
+              <button mat-flat-button type="submit" [disabled]="busy()">Criar tarefa</button>
+            </form>
+            <h3>Backlog do projeto</h3>
+            @if (tasks().length === 0 && !busy()) {
+              <p class="muted">Este projeto ainda não tem tarefas.</p>
+            } @else {
+              <ul class="task-list">
+                @for (task of tasks(); track task.id) {
+                  <li class="task-item">
+                    <div class="task-heading">
+                      <div><strong>{{ task.title }}</strong><span class="status-pill">{{ statusLabel(task.status) }}</span></div>
+                      <label class="status-control">Estado
+                        <select [value]="task.status" (change)="changeTaskStatus(task, $event)">
+                          <option value="TODO">A fazer</option>
+                          <option value="IN_PROGRESS">Em andamento</option>
+                          <option value="DONE">Concluída</option>
+                        </select>
+                      </label>
+                    </div>
+                    @if (task.description) { <p>{{ task.description }}</p> }
+                    @if (task.acceptanceCriteria.length) {
+                      <h4>Critérios de aceite</h4>
+                      <ul>@for (criterion of task.acceptanceCriteria; track criterion) { <li>{{ criterion }}</li> }</ul>
+                    }
+                    @if (task.dependencyIds.length) { <p class="muted">{{ task.dependencyIds.length }} dependência(s)</p> }
+                    <button mat-button (click)="loadHistory(task.id)">Ver histórico</button>
+                    @if (historyTaskId() === task.id) {
+                      <ol class="history-list" aria-label="Histórico de alterações">
+                        @for (entry of history(); track entry.id) {
+                          <li>{{ entry.fromStatus ? statusLabel(entry.fromStatus) : 'Criada' }} → {{ statusLabel(entry.toStatus) }} · {{ entry.changedAt }}</li>
+                        }
+                      </ol>
+                    }
+                  </li>
+                }
+              </ul>
+            }
+          }
+        </mat-card-content>
+      </mat-card>
+
+      <mat-card appearance="outlined" class="analysis-card">
+        <mat-card-header><mat-card-title>Analista local (Ollama)</mat-card-title></mat-card-header>
+        <mat-card-content>
+          @if (!selectedProjectId()) {
+            <p class="muted">Selecione um projeto para analisar uma demanda.</p>
+          } @else {
+            <p class="muted">A IA prepara um rascunho. As tarefas só entram no backlog depois da sua aprovação.</p>
+            <form (submit)="analyzeDemand($event)">
+              <label>Demanda<textarea name="analysisDemand" [(ngModel)]="demand" maxlength="5000" rows="4" required placeholder="Descreva o que o projeto precisa"></textarea></label>
+              <button mat-flat-button type="submit" [disabled]="analyzing()">{{ analyzing() ? 'Enviando…' : 'Analisar demanda' }}</button>
+            </form>
+            <h3>Execuções recentes</h3>
+            @if (!runs().length) { <p class="muted">Nenhuma análise neste projeto.</p> }
+            <ul class="task-list">
+              @for (run of runs(); track run.id) {
+                <li class="task-item">
+                  <div class="task-heading"><strong>{{ run.status }}</strong><span class="muted">{{ run.model || 'Aguardando modelo' }}</span></div>
+                  <p>{{ run.demand }}</p>
+                  @if (run.error_code) { <p class="error">Falha: {{ run.error_code }}</p> }
+                  @if (draft(run); as result) {
+                    <h4>Resumo</h4><p>{{ result.summary }}</p>
+                    <h4>Tarefas propostas ({{ result.tasks.length }})</h4>
+                    <ul>@for (item of result.tasks; track $index) {
+                      <li><strong>{{ item.title }}</strong>@if (item.description) {<p>{{ item.description }}</p>}
+                        @if (item.acceptanceCriteria.length) {<ul>@for (criterion of item.acceptanceCriteria; track criterion) {<li>{{ criterion }}</li>}</ul>}
+                      </li>
+                    }</ul>
+                    @if (run.status === 'AWAITING_APPROVAL') {
+                      <p class="muted">Hash do rascunho: {{ run.artifact_hash }} · expira {{ run.expires_at }}</p>
+                      <div class="actions"><button mat-flat-button (click)="decideRun(run, 'APPROVED')">Aprovar e criar tarefas</button><button mat-stroked-button (click)="decideRun(run, 'REJECTED')">Rejeitar</button></div>
+                    }
+                  }
+                  @if (run.status === 'FAILED') { <button mat-stroked-button (click)="retryRun(run)">Tentar novamente</button> }
+                  @if (run.status === 'QUEUED' || run.status === 'RUNNING') { <button mat-stroked-button (click)="cancelRun(run)">Cancelar</button> }
+                  @if (run.approval?.createdTaskIds) { <p class="muted">Tarefas criadas: {{ run.approval?.createdTaskIds }}</p> }
+                </li>
+              }
+            </ul>
+          }
+        </mat-card-content>
+      </mat-card>
+
+      <mat-card appearance="outlined" class="team-card">
+        <mat-card-header><mat-card-title>Equipe multiagente e escritório</mat-card-title></mat-card-header>
+        <mat-card-content>
+          @if (!selectedProjectId()) {
+            <p class="muted">Selecione um projeto para iniciar a equipe.</p>
+          } @else {
+            <div class="live-status" aria-live="polite">Eventos do escritório: <strong>{{ eventConnection() }}</strong></div>
+            <form (submit)="startTeamRun($event)">
+              <label>Demanda para a equipe<textarea name="teamDemand" [(ngModel)]="teamDemand" maxlength="5000" rows="3" required placeholder="PM, analista, arquiteto, desenvolvedor, QA e revisor em sequência"></textarea></label>
+              <button mat-flat-button type="submit" [disabled]="teamBusy()">{{ teamBusy() ? 'Enviando…' : 'Iniciar equipe' }}</button>
+            </form>
+            <div class="office-layout">
+              <div>
+                <h3>Escritório 2D</h3>
+                @if (teamRuns().length) {
+                  @for (run of teamRuns(); track run.id) {
+                    @if (selectedTeamRunId() === run.id) { <app-office-scene [steps]="visibleTeamSteps(run)" /> }
+                  }
+                } @else { <app-office-scene [steps]="[]" /> }
+                <p class="muted">A cena espelha os estados recebidos do backend; o histórico abaixo continua disponível sem canvas.</p>
+                <h4>Atividade recente</h4>
+                <ol class="event-timeline" aria-live="polite">
+                  @for (event of teamEvents().slice(-12).reverse(); track event.eventId) {
+                    <li><strong>{{ teamEventLabel(event) }}</strong><span>{{ event.occurredAt }} · cursor {{ event.cursor }}</span></li>
+                  } @empty { <li class="muted">Aguardando eventos desta equipe.</li> }
+                </ol>
+              </div>
+              <div>
+                <h3>Execuções</h3>
+                <ul class="task-list">
+                  @for (run of teamRuns(); track run.id) {
+                    <li class="task-item" [class.active-run]="selectedTeamRunId() === run.id">
+                      <button mat-button (click)="selectedTeamRunId.set(run.id)"><strong>{{ run.status }}</strong> · {{ run.demand }}</button>
+                      @if (selectedTeamRunId() === run.id) {
+                        <p class="muted">Execução {{ run.attempt_count }} · {{ run.model || 'Ollama local' }} · contexto {{ run.context_version }}</p>
+                        <ol class="role-list">
+                          @for (role of ['PROJECT_MANAGER','BUSINESS_ANALYST','ARCHITECT','DEVELOPER','QA','REVIEWER']; track role) {
+                            <li><strong>{{ role }}</strong><span class="status-pill">{{ teamStepStatus(run, role) }}</span></li>
+                          }
+                        </ol>
+                        @if (run.error_code) { <p class="error">Falha: {{ run.error_code }}</p> }
+                        @if (teamArtifact(run); as artifact) {
+                          <h4>Plano revisado</h4><p>{{ artifact.summary }}</p>
+                          <h4>Tarefas propostas ({{ artifact.tasks.length }})</h4>
+                          <ul>@for (task of artifact.tasks; track $index) {
+                            <li><strong>{{ task.title }}</strong>@if (task.description) {<p>{{ task.description }}</p>}
+                              @if (task.acceptanceCriteria.length) {<ul>@for (criterion of task.acceptanceCriteria; track criterion) {<li>{{ criterion }}</li>}</ul>}
+                            </li>
+                          }</ul>
+                          @for (step of artifact.steps; track step.role) {
+                            <details><summary>{{ step.role }} — achados e recomendação</summary><p>{{ step.artifact.summary }}</p>
+                              @if (step.artifact.findings.length) {<ul>@for (finding of step.artifact.findings; track finding) {<li>{{ finding }}</li>}</ul>}
+                              @if (step.artifact.recommendation) {<p>{{ step.artifact.recommendation }}</p>}
+                            </details>
+                          }
+                          @if (run.status === 'AWAITING_APPROVAL') {
+                            <p class="muted">Hash SHA-256: {{ run.artifact_hash }} · expira {{ run.expires_at }}</p>
+                            <div class="actions"><button mat-flat-button (click)="teamDecision(run,'APPROVED')">Aprovar plano e criar tarefas</button><button mat-stroked-button (click)="teamDecision(run,'REJECTED')">Rejeitar</button></div>
+                          }
+                        }
+                        @if (run.status === 'FAILED') { <button mat-stroked-button (click)="retryTeam(run)">Repetir equipe</button> }
+                        @if (run.status === 'QUEUED' || run.status === 'RUNNING') { <button mat-stroked-button (click)="cancelTeam(run)">Cancelar equipe</button> }
+                        @if (run.approval?.createdTaskIds) { <p class="muted">IDs das tarefas criadas: {{ run.approval?.createdTaskIds }}</p> }
+                      }
+                    </li>
+                  } @empty { <li class="muted">Nenhuma execução da equipe neste projeto.</li> }
+                </ul>
+              </div>
+            </div>
+          }
+        </mat-card-content>
+      </mat-card>
+    </section>
+  }
 </main>

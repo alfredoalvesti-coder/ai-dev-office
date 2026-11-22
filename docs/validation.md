@@ -56,10 +56,27 @@ node ../../.tools/package/bin/npm-cli.js audit --omit=dev --json
 ## Verificações pendentes
 
 - Validar Compose com `docker compose --env-file .env -f infra/compose.yml config --quiet`.
-- Iniciar PostgreSQL e executar o teste Testcontainers em ambiente Docker.
-- Executar aplicação completa com PostgreSQL e frontend, incluindo revisão visual em navegador e exercício de queda do banco.
+- Executar o teste Testcontainers em ambiente Docker.
+- Rever visualmente o frontend no navegador e exercitar queda/reconexão do WebSocket e indisponibilidade do banco.
 - Executar o workflow no GitHub após autorização de publicação.
 - Revisar atualização compatível da cadeia Angular CLI para tratar os avisos de desenvolvimento.
 - Definir licença antes da publicação pública.
 
-Não há evidência local de execução PostgreSQL, de aprovação do workflow remoto ou de revisão visual da página. Os testes H2 e os builds não substituem essas verificações.
+Atualização em 22/11/2026: PostgreSQL local e o fluxo de seis etapas com Ollama foram exercitados com sucesso, incluindo aprovação humana e criação das tarefas; ver [validação das Fases 4 e 5](validation-phases-four-five.md). Ainda faltam a revisão visual do frontend nesta execução, Testcontainers com Docker e o workflow remoto. Os testes H2 e builds não substituem essas verificações.
+
+## Atualização da Fase 2 — 21/11/2026
+
+| Verificação | Resultado |
+| --- | --- |
+| Maven Wrapper, `verify` | BUILD SUCCESS; 12 testes no total, 11 aprovados e 1 teste PostgreSQL ignorado |
+| `FoundationTest` | 4 aprovados |
+| `ManagementApiTest` | 4 aprovados: autenticação, CRUD inicial de projeto, validação e limite de página |
+| `TaskApiTest` | 3 aprovados: transições, histórico, bloqueio por dependência, dependências entre projetos, ciclos e versão antiga |
+| Angular/Vitest | 10 testes aprovados em 3 arquivos |
+| Angular, build de produção | Aprovado; bundle inicial aproximado de 353.4 kB |
+| `npm ci` | Lockfile sincronizado para incluir `@emnapi/core` e `@emnapi/runtime`; instalação limpa aprovada |
+| npm audit completo | 16 vulnerabilidades moderadas na cadeia de desenvolvimento; sem atualização principal forçada |
+
+O backend e o frontend passaram por verificação local com H2 e respostas HTTP controladas. Docker não está disponível; portanto o PostgreSQL real, a configuração Compose e a integração completa dos dois processos continuam pendentes. Não foi executada revisão visual no navegador nem workflow remoto.
+
+Comandos executados: `.\mvnw.cmd -B verify` em `backend/`, com `MAVEN_USER_HOME` apontando para `.maven-home/`; `npm ci --ignore-scripts`, `npm test -- --watch=false` e `npm run build` em `frontend/`.
