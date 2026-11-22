@@ -6,7 +6,7 @@ O projeto é um ambiente de aprendizado profissional e portfólio para Full Stac
 
 ## Status atual
 
-Fases 1 a 5 implementadas no escopo descrito no roadmap: gestão, analista local, equipe multiagente, aprovação humana e escritório 2D com eventos reais. A equipe analisa demandas e cria tarefas após aprovação; ainda não escreve nem executa código. APIs exigem credenciais locais. Consulte [validação das Fases 4 e 5](docs/validation-phases-four-five.md) e a [validação local](docs/validation.md).
+As fases 1 a 5 incluem gestão, analista local, equipe multiagente, aprovação humana e escritório com eventos reais. A V1 do escritório 3D pixelado mostra os personagens andando e trabalhando conforme a etapa selecionada. As APIs exigem credenciais locais. [Guia do escritório](docs/learning/office-3d.md) · [Validação das Fases 4 e 5](docs/validation-phases-four-five.md)
 
 A Fase 6 acrescenta ferramentas de JavaScript em contêiner efêmero, aprovação vinculada ao código e à imagem, histórico de resultados, métricas, alertas e procedimentos de entrega e recuperação. O executor inicia desativado e pode ser habilitado para uma demonstração em ambiente privado. [Guia da Fase 6](docs/learning/phase-six.md).
 
@@ -115,9 +115,9 @@ Em Linux/macOS, use `sh mvnw spring-boot:run`. Na primeira execução, o Wrapper
 
 Instale o Ollama separadamente e baixe o modelo uma vez com `ollama pull qwen2.5:3b`. O projeto usa por padrão `http://localhost:11434`; configure `OLLAMA_BASE_URL` ou `OLLAMA_MODEL` no ambiente do backend para alterar. O startup não instala Ollama nem baixa modelos. Com o serviço local ativo, abra um projeto e envie uma demanda no painel “Analista local”. A saída é apenas um rascunho; aprove o hash exibido para criar suas tarefas. Veja [guia da Fase 3](docs/learning/phase-three.md) e [ADR 0005](docs/adr/0005-local-ai-provider.md).
 
-### Equipe e escritório 2D (Fases 4 e 5)
+### Equipe e escritório 3D pixelado
 
-No painel “Equipe multiagente e escritório”, envie uma demanda para seis papéis Ollama sequenciais. Os passos aparecem na timeline e na sala 2D. Revise o plano agregado e aprove pelo hash para criar tarefas. WebSocket transmite eventos reais e o histórico REST recupera a conexão. [Guia Fases 4/5](docs/learning/phases-four-five.md) · [ADR 0006](docs/adr/0006-sequential-agent-team.md) · [ADR 0007](docs/adr/0007-office-events-and-canvas.md).
+No painel “Equipe multiagente e escritório”, envie uma demanda para seis papéis Ollama sequenciais. Os passos aparecem na timeline e na sala 3D. Revise o plano agregado e aprove pelo hash para criar tarefas. O WebSocket transmite os eventos e o histórico REST recupera a conexão. [Guia do escritório](docs/learning/office-3d.md)
 
 ### Ferramentas isoladas (Fase 6)
 

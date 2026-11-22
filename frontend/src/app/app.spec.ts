@@ -112,4 +112,25 @@ describe('App', () => {
     expect(fixture.nativeElement.textContent).toContain('Entrar');
     expect(fixture.nativeElement.textContent).toContain('Confira as credenciais');
   });
+
+  it('keeps an in-flight team request when a poll refreshes the office', () => {
+    const fixture = TestBed.createComponent(App);
+    const http = TestBed.inject(HttpTestingController);
+    http.expectOne('/actuator/health/readiness').flush({ status: 'UP' });
+    const app = fixture.componentInstance;
+    app.selectedProjectId.set('project-1');
+    app.loadTeamRuns();
+    const url = '/api/projects/project-1/team-runs';
+    const active = http.expectOne(url);
+
+    app.loadTeamRuns();
+    expect(active.cancelled).toBe(false);
+    http.expectNone(url);
+    app.loadTeamRuns(true);
+    app.loadTeamRuns(true);
+    http.expectNone(url);
+    active.flush([]);
+    http.expectOne(url).flush([]);
+    http.expectNone(url);
+  });
 });

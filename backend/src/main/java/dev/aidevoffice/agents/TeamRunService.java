@@ -64,7 +64,12 @@ public class TeamRunService {
     @Transactional(readOnly=true)
     public Map<String,Object> detail(UUID id) {
         Map<String,Object> run=basic(id);
-        run.put("steps",jdbc.queryForList("select attempt_number as attemptNumber,step_number as stepNumber,role,status,artifact_json as artifactJson,error_code as errorCode,started_at as startedAt,finished_at as finishedAt from office.team_steps where run_id=? order by attempt_number,step_number",id));
+        run.put("steps", jdbc.queryForList("""
+                select attempt_number as "attemptNumber", step_number as "stepNumber", role as "role", status as "status",
+                    artifact_json as "artifactJson", error_code as "errorCode",
+                    started_at as "startedAt", finished_at as "finishedAt"
+                from office.team_steps where run_id=? order by attempt_number, step_number
+                """, id));
         run.put("approval",jdbc.query("select decision,artifact_hash as artifactHash,decided_by as decidedBy,created_task_ids as createdTaskIds,decided_at as decidedAt,expires_at as expiresAt from office.team_approvals where run_id=?",(rs,n)->Map.of("decision",rs.getString(1),"artifactHash",rs.getString(2),"decidedBy",rs.getString(3),"createdTaskIds",rs.getString(4),"decidedAt",rs.getTimestamp(5).toInstant(),"expiresAt",rs.getTimestamp(6).toInstant()),id).stream().findFirst().orElse(null));
         return run;
     }

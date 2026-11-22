@@ -1,7 +1,7 @@
 import { Component, DestroyRef, computed, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { interval, Subscription, timeout } from 'rxjs';
+import { finalize, interval, Observable, Subscription, timeout } from 'rxjs';
 import { FormsModule } from '@angular/forms';
 import { MatCardModule } from '@angular/material/card';
 import { MatButtonModule } from '@angular/material/button';
@@ -11,6 +11,7 @@ import { Task, TaskHistory, TaskStatus, TasksService } from './tasks.service';
 import { AgentsService, AnalysisDraft, AnalysisRun } from './agents.service';
 import { ProjectEvent, TeamFinalArtifact, TeamRun, TeamService } from './team.service';
 import { OfficeSceneComponent } from './office-scene.component';
+import { OFFICE_CREW, OFFICE_STATUS, officeStatuses } from './office-state';
 import { ToolRunsComponent } from './tool-runs.component';
 
 @Component({
@@ -29,6 +30,12 @@ export class App {
   private readonly agentsApi = inject(AgentsService);
   private readonly teamApi = inject(TeamService);
   private teamEventsSubscription?: Subscription;
+  private teamRunsSubscription?: Subscription;
+  private teamRefreshPending = false;
+  private teamProjectVersion = 0;
+  readonly officeCrew = OFFICE_CREW;
+  readonly officeStatusLabels = OFFICE_STATUS;
+  readonly officeStatuses = officeStatuses;
   readonly status = signal<'loading' | 'up' | 'down'>('loading');
   readonly signedIn = computed(() => this.auth.authenticated());
   readonly projects = signal<Project[]>([]);
@@ -42,6 +49,8 @@ export class App {
   readonly analyzing = signal(false);
   readonly teamRuns = signal<TeamRun[]>([]);
   readonly selectedTeamRunId = signal('');
+  readonly selectedTeamRun = computed(() =>
+    this.teamRuns().find((run) => run.id === this.selectedTeamRunId()) ?? null);
   readonly teamEvents = signal<ProjectEvent[]>([]);
   readonly eventConnection = signal<'connecting'|'connected'|'disconnected'>('disconnected');
   readonly teamBusy = signal(false);
@@ -86,6 +95,7 @@ export class App {
   signOut(): void {
     this.auth.signOut();
     this.teamEventsSubscription?.unsubscribe();
+    this.stopTeamRunsRefresh();
     this.password = '';
     this.projects.set([]);
     this.tasks.set([]);
@@ -93,6 +103,7 @@ export class App {
     this.history.set([]);
     this.runs.set([]);
     this.teamRuns.set([]);
+    this.selectedTeamRunId.set('');
     this.teamEvents.set([]);
     this.eventConnection.set('disconnected');
     this.error.set('');
@@ -109,8 +120,7 @@ export class App {
         if (authenticating) this.auth.confirmAuthentication();
         this.busy.set(false);
         if (this.selectedProjectId() && !result.content.some((project) => project.id === this.selectedProjectId())) {
-          this.selectedProjectId.set('');
-          this.tasks.set([]);
+          this.selectProject('');
         }
       },
       error: () => {
@@ -145,12 +155,15 @@ export class App {
 
   selectProject(projectId: string): void {
     this.teamEventsSubscription?.unsubscribe();
+    this.stopTeamRunsRefresh();
+    const version = this.teamProjectVersion;
     this.eventConnection.set('disconnected');
     this.selectedProjectId.set(projectId);
     this.tasks.set([]);
     this.history.set([]);
     this.runs.set([]);
     this.teamRuns.set([]);
+    this.selectedTeamRunId.set('');
     this.teamEvents.set([]);
     if (!projectId) return;
     this.busy.set(true);
@@ -160,27 +173,73 @@ export class App {
     });
     this.loadRuns();
     this.loadTeamRuns();
-    this.teamEventsSubscription=this.teamApi.watch(projectId,event=>{
-      this.teamEvents.update(events=>[...events,event].slice(-100));
-      this.loadTeamRuns();
-    },state=>this.eventConnection.set(state));
+    this.teamEventsSubscription = this.teamApi.watch(projectId, (event) => {
+      if (this.teamProjectVersion !== version || event.projectId !== projectId) return;
+      this.teamEvents.update((events) => [...events, event].slice(-100));
+      this.loadTeamRuns(true);
+    }, (state) => {
+      if (this.teamProjectVersion === version) this.eventConnection.set(state);
+    });
   }
 
-  loadTeamRuns(): void {
-    const projectId=this.selectedProjectId();if(!projectId)return;
-    this.teamApi.list(projectId).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({next:runs=>{
-      this.teamRuns.set(runs);
-      if(this.selectedTeamRunId()&&!runs.some(run=>run.id===this.selectedTeamRunId()))this.selectedTeamRunId.set('');
-      if(!this.selectedTeamRunId()&&runs.length)this.selectedTeamRunId.set(runs[0].id);
-    },error:()=>this.error.set('Não foi possível carregar o histórico da equipe.')});
+  loadTeamRuns(refreshAfterPending = false): void {
+    const projectId = this.selectedProjectId();
+    if (!projectId) return;
+    if (this.teamRunsSubscription) {
+      this.teamRefreshPending ||= refreshAfterPending;
+      return;
+    }
+    const request = new Subscription();
+    this.teamRunsSubscription = request;
+    request.add(this.teamApi.list(projectId).pipe(
+      takeUntilDestroyed(this.destroyRef),
+      finalize(() => {
+        if (this.teamRunsSubscription !== request) return;
+        this.teamRunsSubscription = undefined;
+        const refresh = this.teamRefreshPending;
+        this.teamRefreshPending = false;
+        if (refresh && !this.destroyRef.destroyed) this.loadTeamRuns();
+      }),
+    ).subscribe({
+      next: (runs) => {
+        if (this.selectedProjectId() !== projectId) return;
+        this.teamRuns.set(runs);
+        if (!runs.some((run) => run.id === this.selectedTeamRunId())) {
+          this.selectedTeamRunId.set(runs[0]?.id ?? '');
+        }
+      },
+      error: () => {
+        if (this.selectedProjectId() === projectId) this.error.set('Não foi possível carregar o histórico da equipe.');
+      },
+    }));
+  }
+
+  private stopTeamRunsRefresh(): void {
+    this.teamProjectVersion++;
+    const request = this.teamRunsSubscription;
+    this.teamRunsSubscription = undefined;
+    this.teamRefreshPending = false;
+    this.teamBusy.set(false);
+    request?.unsubscribe();
   }
 
   startTeamRun(event:Event):void {
     event.preventDefault();const projectId=this.selectedProjectId();if(!projectId||!this.teamDemand.trim())return;
+    const version = this.teamProjectVersion;
     this.teamBusy.set(true);
     this.teamApi.create(projectId,this.teamDemand.trim()).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
-      next:run=>{this.teamDemand='';this.teamBusy.set(false);this.selectedTeamRunId.set(run.id);this.loadTeamRuns();},
-      error:()=>{this.teamBusy.set(false);this.error.set('Não foi possível iniciar a equipe. Confirme Ollama, modelo e banco.');},
+      next:run=>{
+        if (this.teamProjectVersion !== version) return;
+        this.teamBusy.set(false);
+        this.teamDemand='';
+        this.selectedTeamRunId.set(run.id);
+        this.loadTeamRuns(true);
+      },
+      error:()=>{
+        if (this.teamProjectVersion !== version) return;
+        this.teamBusy.set(false);
+        this.error.set('Não foi possível iniciar a equipe. Confirme Ollama, modelo e banco.');
+      },
     });
   }
 
@@ -189,15 +248,23 @@ export class App {
   }
 
   teamDecision(run:TeamRun,decision:'APPROVED'|'REJECTED'):void {
-    this.teamApi.decide(run,decision).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({next:()=>{this.loadTeamRuns();if(decision==='APPROVED')this.selectProject(run.project_id);},error:()=>this.error.set('Não foi possível registrar a decisão. Recarregue o plano e tente novamente.')});
+    this.updateTeamRun(this.teamApi.decide(run, decision),
+      'Não foi possível registrar a decisão. Recarregue o plano e tente novamente.',
+      decision === 'APPROVED' ? () => this.selectProject(run.project_id) : undefined);
   }
-  retryTeam(run:TeamRun):void { this.teamApi.retry(run.id).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({next:()=>this.loadTeamRuns(),error:()=>this.error.set('Não foi possível repetir a execução da equipe.')}); }
-  cancelTeam(run:TeamRun):void { this.teamApi.cancel(run.id).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({next:()=>this.loadTeamRuns(),error:()=>this.error.set('Não foi possível cancelar a equipe.')}); }
-  teamStepStatus(run:TeamRun,role:string):string {
-    const step=run.steps.filter(item=>item.attemptNumber===run.attempt_count&&item.role===role).at(-1);
-    return step?.status??(run.status==='FAILED'?'SKIPPED':run.status==='CANCELLED'?'CANCELLED':'IDLE');
+  retryTeam(run: TeamRun): void {
+    this.updateTeamRun(this.teamApi.retry(run.id), 'Não foi possível repetir a execução da equipe.');
   }
-  visibleTeamSteps(run:TeamRun|null):TeamRun['steps'] { return run?run.steps.filter(step=>step.attemptNumber===run.attempt_count):[]; }
+  cancelTeam(run: TeamRun): void {
+    this.updateTeamRun(this.teamApi.cancel(run.id), 'Não foi possível cancelar a equipe.');
+  }
+  private updateTeamRun(operation: Observable<TeamRun>, message: string, onSuccess = () => this.loadTeamRuns(true)): void {
+    const version = this.teamProjectVersion;
+    operation.pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: () => { if (this.teamProjectVersion === version) onSuccess(); },
+      error: () => { if (this.teamProjectVersion === version) this.error.set(message); },
+    });
+  }
   teamEventLabel(event:ProjectEvent):string { const role=String(event.payload['role']??'');return `${event.type}${role?` · ${role}`:''}`; }
 
   loadRuns(): void {
