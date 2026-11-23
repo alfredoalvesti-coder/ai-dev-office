@@ -88,6 +88,18 @@ form button { justify-self: start; }
 .toolbar p { margin: 0; }
 .error { color: #a12525; background: #fff0ee; padding: 12px 14px; border-radius: 8px; }
 .muted { color: #536976; font-size: .9rem; }
+.code-preview {
+  margin: 8px 0 0;
+  padding: 10px 12px;
+  max-height: 220px;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: "Cascadia Code", "Consolas", monospace;
+  font-size: .82rem;
+  background: #eef3f6;
+  border-radius: 8px;
+}
 .project-list, .task-list { list-style: none; margin: 12px 0 0; padding: 0; }
 .project-list { display: grid; gap: 8px; }
 .project-choice {

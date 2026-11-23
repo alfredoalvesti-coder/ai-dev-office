@@ -1,6 +1,7 @@
 .env
 .env.*
 !.env.example
+workspaces/
 .tools/
 .maven-home/
 .m2/

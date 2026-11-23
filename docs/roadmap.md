@@ -173,3 +173,37 @@ Critérios de aceite — Diferenciar implementado e planejado, explicar escolhas
 Dependências — Entregas selecionadas das fases anteriores, licença e autorização de publicação.
 
 Testes sugeridos — Executar tutorial a partir de clone limpo e revisar exposição de dados antes de publicar.
+
+## Fase 7 — Equipe trabalhar
+
+Status — V1 em implementação: proposta de arquivos após plano aprovado, segunda aprovação por hash e aplicação em workspace por projeto. [ADR 0010](adr/0010-implementation-workspace.md) · [Guia](learning/phase-seven.md).
+
+### F7-01 — Proposta de implementação
+
+Descrição — A partir de um `team_run` aprovado, gerar proposta estruturada de arquivos com o modelo local.
+
+Critérios de aceite — Só aceita plano `APPROVED`, valida JSON, limita quantidade/tamanho/extensão, persiste hash e expira proposta.
+
+Dependências — Fases 4 e 5; Ollama local.
+
+Testes sugeridos — Plano não aprovado rejeitado, JSON inválido, path traversal bloqueado, hash divergente.
+
+### F7-02 — Aprovação e aplicação no workspace
+
+Descrição — Aprovar ou rejeitar a proposta; em aprovação, gravar arquivos sob `workspaces/{projectId}/` e emitir eventos.
+
+Critérios de aceite — Escrita só após hash correto, workspace fora do monorepo, eventos na timeline, listagem dos arquivos aplicados.
+
+Dependências — F7-01.
+
+Testes sugeridos — Aprovar aplica, rejeitar não escreve, caminho absoluto rejeitado, segundo approve idempotente.
+
+### F7-03 — Verificação e correção (seguinte)
+
+Descrição — Rodar checagens automatizadas sobre o workspace e permitir nova rodada de correção.
+
+Critérios de aceite — Evidência de build/teste, falhas persistidas, correção sob nova aprovação.
+
+Dependências — F7-02.
+
+Testes sugeridos — Build falho não marca sucesso, correção altera só arquivos aprovados.

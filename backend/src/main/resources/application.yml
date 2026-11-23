@@ -37,9 +37,12 @@ app:
     approval-hours: ${AI_APPROVAL_HOURS:24}
     prompt-version: analyst-prompt-v1
   team:
-    output-token-limit: ${TEAM_OUTPUT_TOKEN_LIMIT:800}
+    output-token-limit: ${TEAM_OUTPUT_TOKEN_LIMIT:2000}
     max-attempts: ${TEAM_MAX_ATTEMPTS:3}
     context-version: ${TEAM_CONTEXT_VERSION:team-workflow-v1}
+  implementation:
+    workspace-root: ${APP_WORKSPACE_ROOT:./workspaces}
+    output-token-limit: ${IMPLEMENTATION_OUTPUT_TOKEN_LIMIT:2000}
   websocket:
     allowed-origins: "${APP_WEBSOCKET_ALLOWED_ORIGINS:http://localhost:4200,http://127.0.0.1:4200}"
 server:

@@ -46,6 +46,7 @@ O fluxo `team_runs` encadeia seis papéis locais, com `team_steps` e artefatos p
 | agents | Analista local, aprovações e execução sequencial de seis papéis | APIs de tasks e porta de IA |
 | orchestration | Passagem de contexto, tentativas, artefatos e aprovação do plano | APIs de tasks, agents, ai e events |
 | tools | Aprovação, fila, execução efêmera e histórico de ferramentas JavaScript | PostgreSQL e daemon Docker dedicado |
+| implementation | Proposta de arquivos pós-plano, aprovação e workspace por projeto | agents e sistema de arquivos local |
 | events | Eventos persistidos, histórico REST e entrega WebSocket | Contratos versionados |
 | ai | Adaptador Spring AI/Ollama; outros provedores futuros | Porta AnalysisGenerator |
 | platform | Configuração transversal e saúde | Infraestrutura Spring |
@@ -65,3 +66,5 @@ Uma demanda gera uma execução persistida e passa pelos seis papéis locais. O 
 O backend é a fonte de verdade. Eventos persistidos são entregues por REST e WebSocket autenticado por ticket temporário de uso único. O escritório 3D pixelado e a timeline representam os estados do backend. A recuperação usa cursor e histórico. [ADR 0009](adr/0009-pixel-office-v1.md)
 
 O painel de ferramentas usa uma aprovação independente vinculada ao código, à ferramenta e à imagem. O worker passa código por stdin a um contêiner sem montagens do host e registra o resultado por projeto. O Compose fornece PostgreSQL. O daemon dedicado do executor tem configuração própria. [ADR 0008](adr/0008-isolated-tool-execution.md).
+
+A Fase 7 acrescenta `implementation_runs`: após um plano de equipe aprovado, o operador pede a implementação, revisa a proposta de arquivos e aprova um segundo hash. Só então o backend grava em `workspaces/{projectId}/`. [ADR 0010](adr/0010-implementation-workspace.md).

@@ -10,6 +10,7 @@ import { Page, Project, ProjectsService } from './projects.service';
 import { Task, TaskHistory, TaskStatus, TasksService } from './tasks.service';
 import { AgentsService, AnalysisDraft, AnalysisRun } from './agents.service';
 import { ProjectEvent, TeamFinalArtifact, TeamRun, TeamService } from './team.service';
+import { ImplementationProposal, ImplementationRun, ImplementationService } from './implementation.service';
 import { OfficeSceneComponent } from './office-scene.component';
 import { OFFICE_CREW, OFFICE_STATUS, officeStatuses } from './office-state';
 import { ToolRunsComponent } from './tool-runs.component';
@@ -29,6 +30,7 @@ export class App {
   private readonly tasksApi = inject(TasksService);
   private readonly agentsApi = inject(AgentsService);
   private readonly teamApi = inject(TeamService);
+  private readonly implementationApi = inject(ImplementationService);
   private teamEventsSubscription?: Subscription;
   private teamRunsSubscription?: Subscription;
   private teamRefreshPending = false;
@@ -54,6 +56,10 @@ export class App {
   readonly teamEvents = signal<ProjectEvent[]>([]);
   readonly eventConnection = signal<'connecting'|'connected'|'disconnected'>('disconnected');
   readonly teamBusy = signal(false);
+  readonly implementations = signal<ImplementationRun[]>([]);
+  readonly implementationBusy = signal(false);
+  readonly selectedWorkspaceFile = signal('');
+  readonly workspaceFileContent = signal('');
   readonly busy = signal(false);
   readonly error = signal('');
   username = '';
@@ -72,6 +78,7 @@ export class App {
     interval(3000).pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => {
       if (this.selectedProjectId() && this.signedIn()) this.loadRuns();
       if (this.selectedProjectId() && this.signedIn()) this.loadTeamRuns();
+      if (this.selectedProjectId() && this.signedIn()) this.loadImplementations();
     });
   }
 
@@ -105,6 +112,9 @@ export class App {
     this.teamRuns.set([]);
     this.selectedTeamRunId.set('');
     this.teamEvents.set([]);
+    this.implementations.set([]);
+    this.selectedWorkspaceFile.set('');
+    this.workspaceFileContent.set('');
     this.eventConnection.set('disconnected');
     this.error.set('');
   }
@@ -165,6 +175,9 @@ export class App {
     this.teamRuns.set([]);
     this.selectedTeamRunId.set('');
     this.teamEvents.set([]);
+    this.implementations.set([]);
+    this.selectedWorkspaceFile.set('');
+    this.workspaceFileContent.set('');
     if (!projectId) return;
     this.busy.set(true);
     this.tasksApi.list(projectId).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
@@ -173,10 +186,12 @@ export class App {
     });
     this.loadRuns();
     this.loadTeamRuns();
+    this.loadImplementations();
     this.teamEventsSubscription = this.teamApi.watch(projectId, (event) => {
       if (this.teamProjectVersion !== version || event.projectId !== projectId) return;
       this.teamEvents.update((events) => [...events, event].slice(-100));
       this.loadTeamRuns(true);
+      if (String(event.type).startsWith('IMPLEMENTATION_')) this.loadImplementations();
     }, (state) => {
       if (this.teamProjectVersion === version) this.eventConnection.set(state);
     });
@@ -266,6 +281,67 @@ export class App {
     });
   }
   teamEventLabel(event:ProjectEvent):string { const role=String(event.payload['role']??'');return `${event.type}${role?` · ${role}`:''}`; }
+
+  loadImplementations(): void {
+    const projectId = this.selectedProjectId();
+    if (!projectId) return;
+    this.implementationApi.list(projectId).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: (runs) => this.implementations.set(runs),
+      error: () => this.error.set('Não foi possível carregar as implementações.'),
+    });
+  }
+
+  requestImplementation(run: TeamRun): void {
+    const projectId = this.selectedProjectId();
+    if (!projectId || run.status !== 'APPROVED') return;
+    this.implementationBusy.set(true);
+    this.implementationApi.create(projectId, run.id).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: () => {
+        this.implementationBusy.set(false);
+        this.loadImplementations();
+      },
+      error: () => {
+        this.implementationBusy.set(false);
+        this.error.set('Não foi possível pedir a implementação. Confirme o plano aprovado e o Ollama.');
+      },
+    });
+  }
+
+  implementationProposal(run: ImplementationRun): ImplementationProposal | null {
+    if (!run.artifact_json) return null;
+    try {
+      return JSON.parse(run.artifact_json) as ImplementationProposal;
+    } catch {
+      return null;
+    }
+  }
+
+  implementationDecision(run: ImplementationRun, decision: 'APPROVED' | 'REJECTED'): void {
+    this.implementationApi.decide(run, decision).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: () => this.loadImplementations(),
+      error: () => this.error.set('Não foi possível registrar a decisão da implementação.'),
+    });
+  }
+
+  cancelImplementation(run: ImplementationRun): void {
+    this.implementationApi.cancel(run.id).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: () => this.loadImplementations(),
+      error: () => this.error.set('Não foi possível cancelar a implementação.'),
+    });
+  }
+
+  openWorkspaceFile(path: string): void {
+    const projectId = this.selectedProjectId();
+    if (!projectId) return;
+    this.selectedWorkspaceFile.set(path);
+    this.implementationApi.workspaceFile(projectId, path).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: (file) => this.workspaceFileContent.set(file.content),
+      error: () => {
+        this.workspaceFileContent.set('');
+        this.error.set('Não foi possível ler o arquivo do workspace.');
+      },
+    });
+  }
 
   loadRuns(): void {
     const projectId = this.selectedProjectId();

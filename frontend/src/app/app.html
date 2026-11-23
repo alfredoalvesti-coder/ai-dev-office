@@ -236,9 +236,62 @@
                         @if (run.status === 'FAILED') { <button mat-stroked-button (click)="retryTeam(run)">Repetir equipe</button> }
                         @if (run.status === 'QUEUED' || run.status === 'RUNNING') { <button mat-stroked-button (click)="cancelTeam(run)">Cancelar equipe</button> }
                         @if (run.approval?.createdTaskIds) { <p class="muted">IDs das tarefas criadas: {{ run.approval?.createdTaskIds }}</p> }
+                        @if (run.status === 'APPROVED') {
+                          <div class="actions">
+                            <button mat-flat-button type="button" [disabled]="implementationBusy()" (click)="requestImplementation(run)">
+                              {{ implementationBusy() ? 'Pedindo implementação…' : 'Pedir implementação da equipe' }}
+                            </button>
+                          </div>
+                        }
                       }
                     </li>
                   } @empty { <li class="muted">Nenhuma execução da equipe neste projeto.</li> }
+                </ul>
+                <h3>Implementação da equipe</h3>
+                <p class="muted">Após aprovar o plano, peça a implementação. Revise os arquivos e aprove o hash para gravar no workspace do projeto.</p>
+                <ul class="task-list">
+                  @for (item of implementations(); track item.id) {
+                    <li class="task-item">
+                      <p><strong>{{ item.status }}</strong> · team {{ item.team_run_id }} · {{ item.model || 'modelo local' }}</p>
+                      @if (item.error_code) { <p class="error">Falha: {{ item.error_code }}</p> }
+                      @if (implementationProposal(item); as proposal) {
+                        <p>{{ proposal.summary }}</p>
+                        <ul>
+                          @for (file of proposal.files; track file.path) {
+                            <li>
+                              <strong>{{ file.path }}</strong>
+                              @if (file.rationale) { <span class="muted"> — {{ file.rationale }}</span> }
+                              <pre class="code-preview">{{ file.content }}</pre>
+                            </li>
+                          }
+                        </ul>
+                        @if (item.status === 'AWAITING_APPROVAL') {
+                          <p class="muted">Hash SHA-256: {{ item.artifact_hash }} · expira {{ item.expires_at }}</p>
+                          <div class="actions">
+                            <button mat-flat-button type="button" (click)="implementationDecision(item,'APPROVED')">Aprovar e gravar no workspace</button>
+                            <button mat-stroked-button type="button" (click)="implementationDecision(item,'REJECTED')">Rejeitar</button>
+                          </div>
+                        }
+                      }
+                      @if (item.status === 'QUEUED' || item.status === 'RUNNING' || item.status === 'AWAITING_APPROVAL') {
+                        <button mat-stroked-button type="button" (click)="cancelImplementation(item)">Cancelar implementação</button>
+                      }
+                      @if (item.status === 'APPLIED' && item.workspaceFiles.length) {
+                        <h4>Arquivos no workspace</h4>
+                        <ul>
+                          @for (path of item.workspaceFiles; track path) {
+                            <li><button mat-button type="button" (click)="openWorkspaceFile(path)">{{ path }}</button></li>
+                          }
+                        </ul>
+                        @if (selectedWorkspaceFile()) {
+                          <p class="muted">{{ selectedWorkspaceFile() }}</p>
+                          <pre class="code-preview">{{ workspaceFileContent() }}</pre>
+                        }
+                      }
+                    </li>
+                  } @empty {
+                    <li class="muted">Nenhuma implementação pedida ainda.</li>
+                  }
                 </ul>
               </div>
             </div>

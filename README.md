@@ -10,6 +10,8 @@ As fases 1 a 5 incluem gestão, analista local, equipe multiagente, aprovação 
 
 A Fase 6 acrescenta ferramentas de JavaScript em contêiner efêmero, aprovação vinculada ao código e à imagem, histórico de resultados, métricas, alertas e procedimentos de entrega e recuperação. O executor inicia desativado e pode ser habilitado para uma demonstração em ambiente privado. [Guia da Fase 6](docs/learning/phase-six.md).
 
+A Fase 7 coloca a equipe para trabalhar: após o plano aprovado, o operador pede a implementação, revisa a proposta de arquivos e, ao aprovar o hash, o backend grava no workspace do projeto. [Guia da Fase 7](docs/learning/phase-seven.md) · [ADR 0010](docs/adr/0010-implementation-workspace.md).
+
 Licença pendente por decisão do titular. A inclusão da MIT será avaliada posteriormente. A publicação pública ainda depende dessa definição e de autorização.
 
 ## Tecnologias
@@ -160,6 +162,7 @@ Para encerrar somente o PostgreSQL de desenvolvimento, use `docker compose --env
 4. Equipe especializada com passagem de contexto e revisão.
 5. Escritório Phaser e eventos WebSocket reais.
 6. Execução isolada, observabilidade, segurança, CI/CD e demonstração.
+7. Implementação aprovada em workspace: a equipe propõe arquivos e só grava após revisão humana.
 
 A configuração Compose fornece o banco local. O executor usa um daemon Docker configurado separadamente. [Backlog completo com critérios, dependências e testes](docs/roadmap.md).
 
